@@ -176,6 +176,11 @@ inline bool _rtw_time_after(systime a, systime b)
 	return time_after(a, b);
 }
 
+inline bool _rtw_time_after_eq(systime a, systime b)
+{
+	return time_after_eq(a, b);
+}
+
 void rtw_sleep_schedulable(int ms)
 {
 	u32 delta;

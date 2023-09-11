@@ -154,6 +154,16 @@
 
 #endif
 
+/*
+ * MLD related linux kernel patch in
+ * Android Common Kernel android13-5.15
+ * refs/heads/common-android13-5.15-2023-04 (5.15.94)
+ * refs/heads/android13-5.15-lts (5.15.106)
+ */
+#if (defined(__ANDROID_COMMON_KERNEL__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 94)))
+        #define CONFIG_MLD_KERNEL_PATCH
+#endif
+
 #define ATOMIC_T atomic_t
 
 #ifdef DBG_MEMORY_LEAK
@@ -496,6 +506,8 @@ typedef void *thread_context;
 struct thread_hdl{
 	_thread_hdl_ thread_handler;
 	u8 thread_status;
+	u8 cpu_id;
+	u8 en_assign_cpuid;
 };
 #define THREAD_STATUS_STARTED BIT(0)
 #define THREAD_STATUS_STOPPED BIT(1)
@@ -519,6 +531,25 @@ static inline void rtw_thread_exit(_completion *comp)
 #else
 	kthread_complete_and_exit(comp, 0);
 #endif
+}
+
+static inline _thread_hdl_ rtw_thread_cpu_start(int (*threadfn)(void *data),
+			void *data, const char namefmt[], u8 cpu_id, u8 en_cpuid)
+{
+	_thread_hdl_ _rtw_thread = NULL;
+
+	_rtw_thread = kthread_create(threadfn, data, namefmt);
+	if (IS_ERR(_rtw_thread)) {
+		WARN_ON(!_rtw_thread);
+		_rtw_thread = NULL;
+	}
+	else {
+		/* Specific CPU */
+		if(en_cpuid == _TRUE)
+			kthread_bind(_rtw_thread, cpu_id);
+		wake_up_process(_rtw_thread);
+	}
+	return _rtw_thread;
 }
 
 static inline _thread_hdl_ rtw_thread_start(int (*threadfn)(void *data),
@@ -715,6 +746,11 @@ __inline static void _init_timer(_timer *ptimer, void *pfunc, void *cntx)
 	ptimer->timer.data = (unsigned long)ptimer;
 	init_timer(&ptimer->timer);
 #endif
+}
+
+__inline static int _check_timer_is_active(_timer *ptimer)
+{
+	return timer_pending(&ptimer->timer);
 }
 
 __inline static void _set_timer(_timer *ptimer, u32 delay_time)
@@ -1041,6 +1077,11 @@ static inline void rtw_dump_stack(void)
 #ifndef fallthrough
 #define fallthrough do {} while (0) /* fallthrough */
 #endif
+#endif
+
+#ifndef static_assert
+#define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
+#define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
 #endif
 
 #ifdef CONFIG_PCI_HCI
