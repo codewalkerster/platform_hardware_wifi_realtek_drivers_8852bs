@@ -275,8 +275,8 @@
 #endif /* !CONFIG_MP_INCLUDED */
 
 #ifdef CONFIG_POWER_SAVE
-	#define CONFIG_RTW_IPS
-	#define CONFIG_RTW_LPS
+	//#define CONFIG_RTW_IPS
+	//#define CONFIG_RTW_LPS
 	#ifdef CONFIG_RTW_IPS
 		#define CONFIG_FWIPS
 	#endif
