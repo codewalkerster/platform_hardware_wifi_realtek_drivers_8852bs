@@ -16,6 +16,10 @@
 
 #include <drv_types.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41) && defined (CONFIG_AMLOGIC_KERNEL_VERSION))
+#include <linux/upstream_version.h>
+#endif
+
 #ifdef CONFIG_IOCTL_CFG80211
 
 #ifndef DBG_RTW_CFG80211_STA_PARAM
@@ -238,12 +242,15 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 	if (started) {
-		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
 		/* ToDo CONFIG_RTW_MLD */
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false);
-		#elif defined(CONFIG_MLD_KERNEL_PATCH)
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false, 0);
-		#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+#else
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false);
+#endif
 
 		/* --- cfg80211_ch_switch_started_notfiy() ---
 		 *  A new parameter, bool quiet, is added from Linux kernel v5.11,
@@ -252,8 +259,10 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 		 *  the quiet is set to false here first. May need to refine it if
 		 *  called by others with block-tx.
 		 */
-
+#else
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
+#endif
+
 #else
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
 #endif
@@ -263,13 +272,15 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 
 	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
 		goto exit;
-
-#if defined(CONFIG_MLD_KERNEL_PATCH)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
 	/* ToDo CONFIG_RTW_MLD */
 	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2))
+#else
 	/* ToDo CONFIG_RTW_MLD */
 	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
+#endif
+
 #else
 	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
 #endif
