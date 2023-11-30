@@ -14,6 +14,7 @@ EXTRA_CFLAGS += -Wno-unused-label
 #EXTRA_CFLAGS += -Wno-unused-function
 EXTRA_CFLAGS += -Wno-unused
 #EXTRA_CFLAGS += -Wno-uninitialized
+EXTRA_CFLAGS += -Wno-incompatible-function-pointer-types
 
 ############ ANDROID COMMON KERNEL ############
 # clang
@@ -132,7 +133,7 @@ CONFIG_RTW_MBO = n
 CONFIG_RTKM ?= n
 ########################## Android ###########################
 # CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10/11/12 : Android version
-CONFIG_RTW_ANDROID = 12
+CONFIG_RTW_ANDROID = 13
 
 ifeq ($(shell test $(CONFIG_RTW_ANDROID) -gt 0; echo $$?), 0)
 EXTRA_CFLAGS += -DCONFIG_RTW_ANDROID=$(CONFIG_RTW_ANDROID)

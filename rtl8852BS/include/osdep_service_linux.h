@@ -160,7 +160,7 @@
  * refs/heads/common-android13-5.15-2023-04 (5.15.94)
  * refs/heads/android13-5.15-lts (5.15.106)
  */
-#if (defined(__ANDROID_COMMON_KERNEL__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 94)))
+#if (defined(CONFIG_RTW_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41)))
         #define CONFIG_MLD_KERNEL_PATCH
 #endif
 
