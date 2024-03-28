@@ -251,6 +251,9 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 #else
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false);
 #endif
+		#elif defined(CONFIG_MLD_KERNEL_PATCH)
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false, 0);
+		#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
 
 		/* --- cfg80211_ch_switch_started_notfiy() ---
 		 *  A new parameter, bool quiet, is added from Linux kernel v5.11,
@@ -2149,7 +2152,7 @@ static int cfg80211_rtw_get_key(struct wiphy *wiphy, struct net_device *ndev
 	}
 
 	ret = 0;
-	
+
 exit:
 	RTW_INFO(FUNC_NDEV_FMT
 		GET_KEY_PARAM_FMT_S
@@ -6345,7 +6348,7 @@ static int	cfg80211_rtw_dump_station(struct wiphy *wiphy, struct net_device *nde
 	else
 		_rtw_memcpy(mac, plink->addr, ETH_ALEN);
 	#endif
-	
+
 	sinfo->filled = 0;
 
 	if (psta) {
@@ -7270,11 +7273,14 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy,
 {
 	s32 err = 0;
 	u8 remain_ch = (u8) ieee80211_frequency_to_channel(channel->center_freq);
+	enum band_type ro_band = nl80211_band_to_rtw_band(channel->band);
 	_adapter *padapter = NULL;
 	struct registry_priv  *pregistrypriv = NULL;
 	//struct rtw_wdev_priv *pwdev_priv;
 	struct cfg80211_roch_info *pcfg80211_rochinfo;
 	struct back_op_param bkop_parm;
+	u8 lidx;
+	struct _ADAPTER_LINK *padapter_link = NULL;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	u8 channel_type = 0;
 #endif
@@ -7319,6 +7325,17 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy,
 	}
 #endif
 #endif
+	if (check_fwstate(&padapter->mlmepriv, WIFI_ASOC_STATE) != _TRUE) {
+		for (lidx = 0; lidx < padapter->adapter_link_num; lidx++) {
+			padapter_link = GET_LINK(padapter, lidx);
+			rtw_update_roch_chan_def(padapter_link,
+						 remain_ch,
+						 CHANNEL_WIDTH_20,
+						 CHAN_OFFSET_NO_EXT,
+						 ro_band);
+			rtw_hw_update_chan_def(padapter, padapter_link);
+		}
+	}
 
 	*cookie = ATOMIC_INC_RETURN(&pcfg80211_rochinfo->ro_ch_cookie_gen);
 
@@ -7351,6 +7368,9 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy,
 		bkop_parm.off_ch_ext_dur = pregistrypriv->roch_extend_dur;
 	else
 		bkop_parm.off_ch_ext_dur = pregistrypriv->roch_extend_dur * 6;
+
+	if(0)
+		RTW_INFO("%s bkop_parm.off_ch_ext_dur=%u\n", __func__, bkop_parm.off_ch_ext_dur);
 
 	rtw_phl_remain_on_ch_cmd(padapter, *cookie, wdev,
 		channel, channel_type, duration, &bkop_parm, is_p2p);
@@ -8533,11 +8553,11 @@ void dump_mesh_config(void *sel, const struct mesh_config *conf)
 	RTW_PRINT_SEL(sel, "dot11MeshForwarding:%d\n", conf->dot11MeshForwarding);
 	RTW_PRINT_SEL(sel, "rssi_threshold:%d\n", conf->rssi_threshold);
 #endif
-	
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 	RTW_PRINT_SEL(sel, "ht_opmode:0x%04x\n", conf->ht_opmode);
 #endif
-	
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 	RTW_PRINT_SEL(sel, "dot11MeshHWMPactivePathToRootTimeout:%u\n", conf->dot11MeshHWMPactivePathToRootTimeout);
 	RTW_PRINT_SEL(sel, "dot11MeshHWMProotInterval:%u\n", conf->dot11MeshHWMProotInterval);
@@ -8548,7 +8568,7 @@ void dump_mesh_config(void *sel, const struct mesh_config *conf)
 	RTW_PRINT_SEL(sel, "power_mode:%s\n", nl80211_mesh_power_mode_str(conf->power_mode));
 	RTW_PRINT_SEL(sel, "dot11MeshAwakeWindowDuration:%u\n", conf->dot11MeshAwakeWindowDuration);
 #endif
-	
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
 	RTW_PRINT_SEL(sel, "plink_timeout:%u\n", conf->plink_timeout);
 #endif
@@ -8684,7 +8704,7 @@ static void rtw_cfg80211_mesh_cfg_set(_adapter *adapter, const struct mesh_confi
 	if (chk_mesh_attr(NL80211_MESHCONF_HT_OPMODE, mask));
 #endif
 #endif
-	
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 	if (chk_mesh_attr(NL80211_MESHCONF_HWMP_PATH_TO_ROOT_TIMEOUT, mask))
 		mcfg->dot11MeshHWMPactivePathToRootTimeout = conf->dot11MeshHWMPactivePathToRootTimeout;
@@ -9082,7 +9102,7 @@ static int cfg80211_rtw_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 		ret = -EINVAL;
 		goto exit;
 	}
-	
+
 	rtw_mesh_work(&adapter->mesh_work);
 
 exit:

@@ -14,7 +14,6 @@ EXTRA_CFLAGS += -Wno-unused-label
 #EXTRA_CFLAGS += -Wno-unused-function
 EXTRA_CFLAGS += -Wno-unused
 #EXTRA_CFLAGS += -Wno-uninitialized
-EXTRA_CFLAGS += -Wno-incompatible-function-pointer-types
 
 ############ ANDROID COMMON KERNEL ############
 # clang
@@ -26,7 +25,6 @@ EXTRA_CFLAGS += -Wno-invalid-source-encoding
 EXTRA_CFLAGS += -Wno-tautological-pointer-compare
 EXTRA_CFLAGS += -Wno-tautological-overlap-compare
 EXTRA_CFLAGS += -Wno-pointer-bool-conversion
-EXTRA_CFLAGS += -Wno-implicit-function-declaration
 EXTRA_CFLAGS += -Wno-parentheses-equality
 EXTRA_CFLAGS += -Wno-self-assign
 EXTRA_CFLAGS += -Wno-header-guard
@@ -55,7 +53,6 @@ CONFIG_PCI_HCI = n
 CONFIG_SDIO_HCI = y
 CONFIG_GSPI_HCI = n
 ########################## Features ###########################
-CONFIG_FPGA_INCLUDED = n
 CONFIG_MP_INCLUDED = y
 CONFIG_CONCURRENT_MODE = n
 CONFIG_POWER_SAVE = y
@@ -329,11 +326,6 @@ $(shell cp $(DRV_PATH)/autoconf_$(IC_NAME)_$(HCI_NAME)_linux.h $(DRV_PATH)/inclu
 endif
 
 ########### END OF PATH  #################################
-ifeq ($(CONFIG_FPGA_INCLUDED), y)
-EXTRA_CFLAGS += -DCONFIG_FPGA_INCLUDED
-CONFIG_PHL_TEST_SUITE = y
-endif
-
 ifeq ($(CONFIG_MP_INCLUDED), y)
 #MODULE_NAME := $(MODULE_NAME)_mp
 EXTRA_CFLAGS += -DCONFIG_MP_INCLUDED
