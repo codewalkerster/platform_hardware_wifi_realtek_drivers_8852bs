@@ -245,7 +245,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 153))
 		/* ToDo CONFIG_RTW_MLD */
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false, 0);
 #else
@@ -276,7 +276,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
 		goto exit;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 153))
 	/* ToDo CONFIG_RTW_MLD */
 	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0);
 #else
