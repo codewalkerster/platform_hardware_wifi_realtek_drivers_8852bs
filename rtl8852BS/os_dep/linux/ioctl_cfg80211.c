@@ -226,6 +226,21 @@ bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
 	return 1;
 }
 
+static inline void rtw_cfg80211_ch_switch_started_notify(struct net_device *dev,
+	struct cfg80211_chan_def *chandef, unsigned int link_id, u8 count, bool quiet)
+{
+#if ( (defined (CONFIG_AMLOGIC_KERNEL_VERSION) && defined (AML_KERNEL_VERSION)) && (\
+		(CONFIG_AMLOGIC_KERNEL_VERSION == 13515 && AML_KERNEL_VERSION >= 15)\
+	 || (CONFIG_AMLOGIC_KERNEL_VERSION == 14515 && AML_KERNEL_VERSION >= 12) ) )\
+	 || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+	 return cfg80211_ch_switch_started_notify(dev, &chandef, link_id, count, quiet, 0);
+#elif defined (CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
+	 return cfg80211_ch_switch_started_notify(dev, &chandef, link_id, count, quiet);
+#else
+	 return cfg80211_ch_switch_started_notify(dev, &chandef, count);
+#endif
+}
+
 u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chdef,
 	u8 ht, bool started)
 {
@@ -242,33 +257,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, struct rtw_chan_def *rtw_chd
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 	if (started) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-#if ((defined (AML_KERNEL_VERSION) && AML_KERNEL_VERSION >= 15) || LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 153))
-		/* ToDo CONFIG_RTW_MLD */
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false, 0);
-#else
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false);
-#endif
-		#elif defined(CONFIG_MLD_KERNEL_PATCH)
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false, 0);
-		#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
-
-		/* --- cfg80211_ch_switch_started_notfiy() ---
-		 *  A new parameter, bool quiet, is added from Linux kernel v5.11,
-		 *  to see if block-tx was requested by the AP. since currently,
-		 *  the API is used for station before connected in rtw_chk_start_clnt_join()
-		 *  the quiet is set to false here first. May need to refine it if
-		 *  called by others with block-tx.
-		 */
-#else
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
-#endif
-
-#else
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
-#endif
+		rtw_cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, alink->mlmepriv.link_id, 0, false);
 		goto exit;
 	}
 #endif
