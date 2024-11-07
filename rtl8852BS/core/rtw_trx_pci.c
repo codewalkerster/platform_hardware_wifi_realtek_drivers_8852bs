@@ -104,7 +104,7 @@ static s32 pci_data_xmit(_adapter *adapter, struct xmit_frame *pxmitframe)
 
 #ifdef CONFIG_TX_AMSDU
 	if (MLME_IS_STA(adapter) &&
-		check_amsdu_tx_support(adapter)) {
+		check_amsdu_tx_support(adapter, pattrib)) {
 
 		if (IS_AMSDU_AMPDU_VALID(pattrib))
 			goto enqueue;

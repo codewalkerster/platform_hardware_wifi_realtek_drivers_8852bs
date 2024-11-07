@@ -57,13 +57,13 @@ rtw_hal_dbcc_trx_ctrl(void *hal, struct rtw_phl_com_t *phl_com,
 #ifdef DBG_DBCC_MONITOR_TIME
 	u32 start_t = 0;
 
-	phl_fun_monitor_start(&start_t, true, __FUNCTION__);
+	PHL_FUN_MON_START(&start_t);
 #endif /* DBG_DBCC_MONITOR_TIME */
 	hsts = rtw_hal_mac_dbcc_trx_ctrl(hal_info, band_idx, pause);
 	if (hsts != RTW_HAL_STATUS_SUCCESS)
 		PHL_ERR("%s band_%d , pause:%d failed\n", __func__, band_idx, pause);
 #ifdef DBG_DBCC_MONITOR_TIME
-	phl_fun_monitor_end(&start_t, __FUNCTION__);
+	PHL_FUNC_MON_END(hal_info->phl_com, &start_t, TIME_PHL_MAX);
 #endif /* DBG_DBCC_MONITOR_TIME */
 	return hsts;
 }
@@ -78,7 +78,7 @@ rtw_hal_dbcc_pre_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 #ifdef DBG_DBCC_MONITOR_TIME
 	u32 start_t = 0;
 
-	phl_fun_monitor_start(&start_t, true, __FUNCTION__);
+	PHL_FUN_MON_START(&start_t);
 #endif /* DBG_DBCC_MONITOR_TIME */
 	if (!phl_com->dev_cap.dbcc_sup)
 		goto exit_func;
@@ -94,7 +94,7 @@ rtw_hal_dbcc_pre_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 
 		hsts = rtw_hal_mac_dbcc_pre_cfg(phl_com, hal_info, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - EN mac_dbcc_pre_cfg failed\n", __func__);
+			PHL_ERR("%s - EN mac_dbcc_pre_cfg failed\n", __func__);
 			hal_com->dbcc_en = false;
 			goto exit_func;
 		}
@@ -107,10 +107,20 @@ rtw_hal_dbcc_pre_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 		hsts = rtw_hal_ppdu_sts_init(hal, &psts_cfg);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
 			hal_com->dbcc_en = false;
-			PHL_ASSERT("%s - EN HW_BAND_1 ppdu_sts_init failed\n", __func__);
+			PHL_ERR("%s - EN HW_BAND_1 ppdu_sts_init failed\n", __func__);
 			goto exit_func;
 		}
 		phl_com->ppdu_sts_info.en_ppdu_sts[HW_BAND_1] = true;
+
+		/* Enable DrvInfo for per pkt rssi */
+		if (RTW_DEV_CAP_ENABLE == phl_com->dev_cap.drv_info_sup) {
+			hsts = rtw_hal_mac_drvinfo_cfg(hal, true, HW_BAND_1);
+			if (hsts != RTW_HAL_STATUS_SUCCESS) {
+				hal_com->dbcc_en = false;
+				PHL_ERR("%s - EN HW_BAND_1 drvinfo failed\n", __func__);
+				goto exit_func;
+			}
+		}
 
 		rtw_hal_mac_dbcc_trx_ctrl(hal_info, HW_BAND_1, true);
 
@@ -123,7 +133,7 @@ rtw_hal_dbcc_pre_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 		/*phy_dbcc_pre_cfg*/
 		hsts = rtw_hal_phy_dbcc_pre_cfg(hal_info, phl_com, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - EN phy_dbcc_pre_cfg failed\n", __func__);
+			PHL_ERR("%s - EN phy_dbcc_pre_cfg failed\n", __func__);
 			hal_com->dbcc_en = false;
 			goto exit_func;
 		}
@@ -143,14 +153,14 @@ rtw_hal_dbcc_pre_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 
 		hsts = rtw_hal_mac_dbcc_pre_cfg(phl_com, hal_info, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - DIS mac_dbcc_pre_cfg failed\n", __func__);
+			PHL_ERR("%s - DIS mac_dbcc_pre_cfg failed\n", __func__);
 			hal_com->dbcc_en = true;
 			goto exit_func;
 		}
 		/*phy_dbcc_pre_cfg*/
 		hsts = rtw_hal_phy_dbcc_pre_cfg(hal_info, phl_com, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - DIS phy_dbcc_pre_cfg failed\n", __func__);
+			PHL_ERR("%s - DIS phy_dbcc_pre_cfg failed\n", __func__);
 			hal_com->dbcc_en = true;
 			goto exit_func;
 		}
@@ -160,7 +170,7 @@ rtw_hal_dbcc_pre_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 
 exit_func:
 #ifdef DBG_DBCC_MONITOR_TIME
-	phl_fun_monitor_end(&start_t, __FUNCTION__);
+	PHL_FUNC_MON_END(hal_info->phl_com, &start_t, TIME_PHL_MAX);
 #endif /* DBG_DBCC_MONITOR_TIME */
 	return hsts;
 }
@@ -175,7 +185,7 @@ rtw_hal_dbcc_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 #ifdef DBG_DBCC_MONITOR_TIME
 	u32 start_t = 0;
 
-	phl_fun_monitor_start(&start_t, true, __FUNCTION__);
+	PHL_FUN_MON_START(&start_t);
 #endif /* DBG_DBCC_MONITOR_TIME */
 	if (!phl_com->dev_cap.dbcc_sup)
 		goto exit_func;
@@ -184,7 +194,7 @@ rtw_hal_dbcc_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 		/*mac_dbcc_cfg*/
 		hsts = rtw_hal_mac_dbcc_cfg(phl_com, hal_info, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - EN mac_dbcc_cfg failed\n", __func__);
+			PHL_ERR("%s - EN mac_dbcc_cfg failed\n", __func__);
 			hal_com->dbcc_en = false;
 			goto exit_func;
 		}
@@ -192,7 +202,7 @@ rtw_hal_dbcc_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 		/*bb,rf_dbcc_cfg*/
 		hsts = rtw_hal_phy_dbcc_cfg(hal_info, phl_com, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - EN phy_dbcc_cfg failed\n", __func__);
+			PHL_ERR("%s - EN phy_dbcc_cfg failed\n", __func__);
 			hal_com->dbcc_en = false;
 			goto exit_func;
 		}
@@ -200,7 +210,7 @@ rtw_hal_dbcc_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 		/*init rx filter opt,type, max MPDU size, RTS threshold*/
 		hsts = rtw_hal_hw_param_init(hal_info, phl_com, HW_BAND_1);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - EN rx param init failed\n", __func__);
+			PHL_ERR("%s - EN rx param init failed\n", __func__);
 			hal_com->dbcc_en = false;
 			goto exit_func;
 		}
@@ -211,25 +221,35 @@ rtw_hal_dbcc_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 
 		hsts = rtw_hal_ppdu_sts_init(hal, &psts_cfg);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			hal_com->dbcc_en = false;
-			PHL_ASSERT("%s - DIS HW_BAND_1 ppdu_sts_deinit failed\n", __func__);
+			hal_com->dbcc_en = true;
+			PHL_ERR("%s - DIS HW_BAND_1 ppdu_sts_deinit failed\n", __func__);
 			goto exit_func;
 		}
 		phl_com->ppdu_sts_info.en_ppdu_sts[HW_BAND_1] = false;
 
+		/* Disable DrvInfo for per pkt rssi */
+		if (RTW_DEV_CAP_ENABLE == phl_com->dev_cap.drv_info_sup) {
+			hsts = rtw_hal_mac_drvinfo_cfg(hal, false, HW_BAND_1);
+			if (hsts != RTW_HAL_STATUS_SUCCESS) {
+				PHL_ERR("%s - DIS HW_BAND_1 drvinfo failed\n", __func__);
+				hal_com->dbcc_en = true;
+				goto exit_func;
+			}
+		}
+
 		/*mac_dbcc_cfg*/
 		hsts = rtw_hal_mac_dbcc_cfg(phl_com, hal_info, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - DIS mac_dbcc_cfg failed\n", __func__);
-			hal_com->dbcc_en = false;
+			PHL_ERR("%s - DIS HW_BAND_1 mac_dbcc_cfg failed\n", __func__);
+			hal_com->dbcc_en = true;
 			goto exit_func;
 		}
 
 		/*bb,rf_dbcc_cfg*/
 		hsts = rtw_hal_phy_dbcc_cfg(hal_info, phl_com, dbcc_en);
 		if (hsts != RTW_HAL_STATUS_SUCCESS) {
-			PHL_ASSERT("%s - DIS phy_dbcc_cfg failed\n", __func__);
-			hal_com->dbcc_en = false;
+			PHL_ERR("%s - DIS HW_BAND_1 phy_dbcc_cfg failed\n", __func__);
+			hal_com->dbcc_en = true;
 			goto exit_func;
 		}
 		hsts = rtw_hal_reset(hal_com, HW_PHY_0, HW_BAND_0, false);
@@ -243,7 +263,7 @@ rtw_hal_dbcc_cfg(void *hal, struct rtw_phl_com_t *phl_com, bool dbcc_en)
 
 exit_func:
 #ifdef DBG_DBCC_MONITOR_TIME
-	phl_fun_monitor_end(&start_t, __FUNCTION__);
+	PHL_FUNC_MON_END(hal_info->phl_com, &start_t, TIME_PHL_MAX);
 #endif /* DBG_DBCC_MONITOR_TIME */
 	return hsts;
 }
@@ -312,6 +332,10 @@ hal_dbcc_cfg_phy_map(struct hal_info_t *hal, enum phl_band_idx band_idx)
 	enum phl_phy_idx phy_idx = rtw_hal_hw_band_to_phy_idx(band_idx);
 	enum phl_phy_idx cck_phy_idx = HW_PHY_MAX;
 
+	if (phy_idx == HW_PHY_MAX) {
+		PHL_ERR("%s invalid phy idx\n", __func__);
+		return;
+	}
 	rtw_hal_reset(hal->hal_com, phy_idx, band_idx, true);
 
 	cck_phy_idx = hal_dbcc_cck_phyidx_decision(hal, hal->phl_com,

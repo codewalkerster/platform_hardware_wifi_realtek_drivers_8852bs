@@ -170,8 +170,7 @@ void halbb_digital_cfo_comp(struct bb_info *bb, s32 curr_cfo)
 
 void halbb_digital_cfo_comp_init(struct bb_info *bb)
 {
-	struct bb_cfo_trk_info *cfo_trk = &bb->bb_cfo_trk_i;
-	struct bb_cfo_trk_cr_info *cr = &bb->bb_cfo_trk_i.bb_cfo_trk_cr_i;
+	struct bb_cfo_trk_cr_info *cr = &bb->bb_cmn_hooker->bb_cfo_trk_cr_i;
 
 	// 0x4494[29] Whether the memory of r_cfo_comp_312p5khz is valid
 	halbb_set_reg(bb, cr->r_cfo_comp_seg0_vld, cr->r_cfo_comp_seg0_vld_m, 1);
@@ -179,13 +178,15 @@ void halbb_digital_cfo_comp_init(struct bb_info *bb)
 	// 0x4490[27:24] r_cfo_weighting
 	halbb_set_reg(bb, cr->r_cfo_wgting, cr->r_cfo_wgting_m, 8);
 
-	/* 0xD248 r_cfo_comp0 */
-	if (bb->ic_type == BB_RTL8852A || bb->ic_type == BB_RTL8852C) {  /*IC supports DBCC with 2TX has HW bug*/
-		/*comp by DCFO r_cfo_comp_seg0_312p5khz_0*/
-		rtw_hal_mac_write_msk_pwr_reg(bb->hal_com, 0, 0xd248, 0x7, 0);
-	} else {
-		/*comp by HW CFO*/
-		rtw_hal_mac_write_msk_pwr_reg(bb->hal_com, 0, 0xd248, 0x7, 0x6);
+	/* 0xD248 r_cfo_comp0 for AX IC */
+	if (bb->bb_80211spec == BB_AX_IC) {
+		if (bb->ic_type == BB_RTL8852A || bb->ic_type == BB_RTL8852C) {  /*IC supports DBCC with 2TX has HW bug*/
+			/*comp by DCFO r_cfo_comp_seg0_312p5khz_0*/
+			halbb_write_mask_pwr_reg_cmn(bb, 0, 0xd248, 0x7, 0);
+		} else {
+			/*comp by HW CFO*/
+			halbb_write_mask_pwr_reg_cmn(bb, 0, 0xd248, 0x7, 0x6);
+		}
 	}
 }
 
@@ -362,10 +363,7 @@ void halbb_cfo_acc_callback(void *context)
 
 	timer->timer_state = BB_TIMER_IDLE;
 
-	if (bb->phl_com->hci_type == RTW_HCI_PCIE)
-		halbb_cfo_acc_io_en(bb);
-	else
-		rtw_hal_cmd_notify(bb->phl_com, MSG_EVT_NOTIFY_BB, (void *)(&timer->event_idx), bb->bb_phy_idx);
+	rtw_hal_cmd_notify(bb->phl_com, MSG_EVT_NOTIFY_BB, (void *)(&timer->event_idx), bb->bb_phy_idx);
 }
 
 void halbb_cfo_acc_timer_init(struct bb_info *bb)
@@ -421,8 +419,8 @@ void halbb_cfo_trk_init(struct bb_info *bb)
 	BB_DBG(bb, DBG_CFO_TRK, "xcap upper_bound=0x%x\n", bb_cfo_trk->x_cap_ub);
 	BB_DBG(bb, DBG_CFO_TRK, "xcap lower_bound=0x%x\n", bb_cfo_trk->x_cap_lb);
 
-	// For manually fine tune digital cfo
-	halbb_set_reg_cmn(bb, 0x4264, 0x00000003, 1, bb->bb_phy_idx);
+	/* For manually fine tune digital cfo*/
+	bb_cfo_trk->dcfo_comp_offset = 1;
 	bb_cfo_trk->tb_tx_comp_cfo_th = DIGI_CFO_COMP_LIMIT << 2;
 	halbb_digital_cfo_comp_init(bb);
 
@@ -617,7 +615,7 @@ s32 halbb_multi_sta_avg_cfo_calc(struct bb_info *bb)
 	u8 active_entry_cnt = 0, sta_cnt = 0;
 	u32 tp_all = 0;
 	u16 active_entry = 0;
-	u8 i;
+	u16 i = 0;
 	u8 cfo_tol = 0;
 	u16 macid;
 
@@ -797,7 +795,7 @@ halbb_cfo_counter_rst(struct bb_info *bb)
 	struct bb_cfo_trk_info *bb_cfo_trk = &bb->bb_cfo_trk_i;
 	struct rtw_phl_stainfo_t *sta;
 	struct rtw_cfo_info *cfo_t = NULL;
-	u8 i, sta_cnt = 0;
+	u16 i = 0, sta_cnt = 0;
 
 	for (i = 0; i < PHL_MAX_STA_NUM; i++) {
 
@@ -907,11 +905,6 @@ void halbb_cfo_ul_ofdma_acc_disable(struct bb_info *bb)
 	struct bb_cfo_trk_info *bb_cfo_trk = &bb->bb_cfo_trk_i;
 
 	BB_DBG(bb, DBG_CFO_TRK, "[%s]\n", __func__);
-	if (bb==NULL)
-	{
-		BB_DBG(bb, DBG_CFO_TRK, "cfo_ul_ofdma_acc_disable fail !\n");
-		return;
-	}
 	bb_cfo_trk->bb_cfo_trk_acc_mode = CFO_ACC_MODE_0;
 }
 
@@ -924,7 +917,8 @@ bool halbb_cfo_acc_mode_en(struct bb_info *bb)
 	struct dev_cap_t *dev = &phl->dev_cap;
 	struct rtw_phl_stainfo_t *sta;
 	u8 sta_cnt = 0;
-	u32 i = 0, cfo_tf_cnt = 0, cfo_tf_cnt_cur = 0;
+	u16 i = 0;
+	u32 cfo_tf_cnt = 0, cfo_tf_cnt_cur = 0;
 	bool is_ul_ofdma = false;
 
 	if (!cfo_trk->cfo_dyn_acc_en)
@@ -1127,6 +1121,8 @@ if (!bb->hal_com->dbcc_en) //WA for DBCC test
 
 void halbb_cfo_watchdog(struct bb_info *bb)
 {
+	halbb_show_cr_cnt(bb, BB_WD_CFO);
+
 	BB_DBG(bb, DBG_CFO_TRK, "[%s] bb_phy_idx=%d\n", __func__, bb->bb_phy_idx);
 
 #ifdef HALBB_DBCC_SUPPORT
@@ -1151,9 +1147,8 @@ void halbb_parsing_cfo(struct bb_info *bb, u32 physts_bitmap,
 	struct dev_cap_t *dev = &bb->phl_com->dev_cap;
 	struct rtw_phl_stainfo_t *sta;
 	struct rtw_cfo_info *cfo_t = NULL;
-	s16 cfo;
-	u8 fw_rate_idx = rate_info->fw_rate_idx;
-	u8 bb_macid;
+	s16 cfo = 0;
+	u16 bb_macid = 0;
 
 	if (!(physts_bitmap & BIT(IE01_CMN_OFDM) &&
 	    physts->bb_physts_rslt_hdr_i.ie_map_type >= LEGACY_OFDM_PKT))
@@ -1169,13 +1164,17 @@ void halbb_parsing_cfo(struct bb_info *bb, u32 physts_bitmap,
 	else
 		cfo = physts->bb_physts_rslt_1_i.cfo_pab_avg;
 
-	if (desc->macid_su > PHL_MAX_STA_NUM)
+	if (desc->macid_su >= PHL_MAX_STA_NUM) {
 		BB_WARNING("[%s] macid_su=%d\n", __func__, desc->macid_su);
+		return;
+	}
 
 	bb_macid = *(bb->phl2bb_macid_table + desc->macid_su);
 
-	if (bb_macid > PHL_MAX_STA_NUM)
+	if (bb_macid >= PHL_MAX_STA_NUM) {
 		BB_WARNING("[%s] bb_macid=%d\n", __func__, bb_macid);
+		return;
+	}
 
 	sta = *(bb->phl_sta_info + bb_macid);
 
@@ -1202,15 +1201,14 @@ void halbb_parsing_cfo(struct bb_info *bb, u32 physts_bitmap,
 	/*BB_DBG(bb, DBG_CFO_TRK, "cfo_cnt[%d]=%d, all_cfo_cnt=%d\n", desc->macid_su, cfo_t->cfo_cnt, bb_cfo_trk->cfo_pkt_cnt);*/
 
 	/* Calcute throughput from rx rate idx*/
-	if (rate_info->mode == BB_HE_MODE) {
-		/* HE[3.2] = VHT[LGI]x1.25*/
-		cfo_t->tp +=
-		((bb_phy_rate_table[fw_rate_idx - MAX_RATE_VHT - MAX_RATE_HT] << 2)
-		+ bb_phy_rate_table[fw_rate_idx - MAX_RATE_VHT - MAX_RATE_HT]) >> 2;
+	if (rate_info->mode == BB_HE_MODE || rate_info->mode ==BB_EHT_MODE) {
+		cfo_t->tp += HALBB_GET_HE_EHT_PHY_RATE(rate_info->ss, rate_info->idx, rate_info->bw);
 	} else if (rate_info->mode == BB_VHT_MODE) {
-		cfo_t->tp += bb_phy_rate_table[fw_rate_idx - MAX_RATE_HT];
+		cfo_t->tp += HALBB_GET_HT_VHT_PHY_RATE(rate_info->ss, rate_info->idx, rate_info->bw);
+	} else if (rate_info->mode == BB_HT_MODE) {
+		cfo_t->tp += HALBB_GET_HT_VHT_PHY_RATE(rate_info->ss, rate_info->idx % HT_NUM_MCS, rate_info->bw);
 	} else {
-		cfo_t->tp +=  bb_phy_rate_table[fw_rate_idx];
+		cfo_t->tp += HALBB_GET_LEGACY_PHY_RATE(rate_info->idx);
 	}
 }
 
@@ -1249,6 +1247,8 @@ void halbb_cfo_trk_dbg(struct bb_info *bb, char input[][16], u32 *_used,
 			    "cfo_tol {manually adjust hypothetical sta_cfo_tolerance in decimal kHz}\n");
 		BB_DBG_CNSL(*_out_len, *_used, output + *_used, *_out_len - *_used,
 			    "cfo_step {step[0]} {step[1]} {step[2]} {step[3]}\n");
+		BB_DBG_CNSL(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			    "dcfo_offset {(s32)compensate offset}\n");
 		return;
 	}
 
@@ -1312,7 +1312,7 @@ void halbb_cfo_trk_dbg(struct bb_info *bb, char input[][16], u32 *_used,
 			    "[Start callback]\n");
 			halbb_cfo_acc_io_en(bb);
 		}
-	}else if (_os_strcmp(input[1], "acc_mode") == 0) {
+	} else if (_os_strcmp(input[1], "acc_mode") == 0) {
 		HALBB_SCAN(input[2], DCMD_DECIMAL, &var[0]);
 		HALBB_SCAN(input[3], DCMD_DECIMAL, &var[1]);
 
@@ -1395,12 +1395,21 @@ void halbb_cfo_trk_dbg(struct bb_info *bb, char input[][16], u32 *_used,
 			    "cfo_step: step[0]=%d; step[1]=%d; step[2]=%d; step[3]=%d\n",
 			    bb_cfo_trk->step[0], bb_cfo_trk->step[1],
 			    bb_cfo_trk->step[2], bb_cfo_trk->step[3]);
+	} else if (_os_strcmp(input[1], "dcfo_offset") == 0) {
+		HALBB_SCAN(input[2], DCMD_DECIMAL, &var[0]);
+
+		bb_cfo_trk->dcfo_comp_offset = (s32)var[0];
+
+		BB_DBG_CNSL(*_out_len, *_used, output + *_used,
+			    *_out_len - *_used,
+			    "dcfo compensate offset=%d\n",
+			    bb_cfo_trk->dcfo_comp_offset);
 	}
 }
 
 void halbb_cr_cfg_cfo_trk_init(struct bb_info *bb)
 {
-	struct bb_cfo_trk_cr_info *cr = &bb->bb_cfo_trk_i.bb_cfo_trk_cr_i;
+	struct bb_cfo_trk_cr_info *cr = &bb->bb_cmn_hooker->bb_cfo_trk_cr_i;
 
 	switch (bb->cr_type) {
 
@@ -1471,6 +1480,19 @@ void halbb_cr_cfg_cfo_trk_init(struct bb_info *bb)
 		cr->r_cfo_comp_seg0_vld_m = CFO_COMP_SEG0_VLD_0_BE0_M;
 		cr->r_cfo_wgting = CFO_WGTING_BE0;
 		cr->r_cfo_wgting_m = CFO_WGTING_BE0_M;
+
+		break;
+
+	#endif
+
+	#ifdef HALBB_COMPILE_BE1_SERIES
+	case BB_BE1:
+		cr->r_cfo_comp_seg0_312p5khz = CFO_COMP_SEG0_312P5KHZ_0_BE1;
+		cr->r_cfo_comp_seg0_312p5khz_m = CFO_COMP_SEG0_312P5KHZ_0_BE1_M;
+		cr->r_cfo_comp_seg0_vld = CFO_COMP_SEG0_VLD_0_BE1;
+		cr->r_cfo_comp_seg0_vld_m = CFO_COMP_SEG0_VLD_0_BE1_M;
+		cr->r_cfo_wgting = CFO_WGTING_BE1;
+		cr->r_cfo_wgting_m = CFO_WGTING_BE1_M;
 
 		break;
 

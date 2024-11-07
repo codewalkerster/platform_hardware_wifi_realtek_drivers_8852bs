@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2019 - 2021 Realtek Corporation.
+ * Copyright(c) 2019 - 2023 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -14,8 +14,6 @@
  *****************************************************************************/
 #include <drv_types.h>
 
-#if defined(CONFIG_CMD_GENERAL) || defined(CONFIG_STA_CMD_DISPR)
-#ifdef CONFIG_CMD_GENERAL/*for warkaround*/
 static void
 phl_run_core_cmd(void *drv_priv, u8 *cmd, u32 cmd_len, enum rtw_phl_status status)
 {
@@ -32,14 +30,6 @@ phl_run_core_cmd(void *drv_priv, u8 *cmd, u32 cmd_len, enum rtw_phl_status statu
 			, rtw_cmd_name(pcmd)
 			, dev_is_drv_stopped(dvobj) ? "True" : "False"
 			, dev_is_surprise_removed(dvobj) ? "True" : "False");
-
-		if (pcmd->cmdcode == CMD_SET_DRV_EXTRA) {
-			struct drvextra_cmd_parm *extra_parm =
-				(struct drvextra_cmd_parm *)pcmd->parmbuf;
-
-			if (extra_parm->pbuf && (extra_parm->size > 0))
-				rtw_mfree(extra_parm->pbuf, extra_parm->size);
-		}
 
 		_rtw_mutex_lock(&pcmdpriv->sctx_mutex);
 		if (pcmd->sctx) {
@@ -59,9 +49,7 @@ phl_run_core_cmd(void *drv_priv, u8 *cmd, u32 cmd_len, enum rtw_phl_status statu
 
 	rtw_run_cmd(padapter, pcmd, false);
 }
-#endif /* CONFIG_CMD_GENERAL */
 
-#ifdef CONFIG_STA_CMD_DISPR
 static u32 _evt_joinbss_hdl(struct _ADAPTER *a, struct wlan_network *network)
 {
 	struct dvobj_priv *d;
@@ -106,8 +94,6 @@ disconnect:
 exit:
 	return res;
 }
-#endif /* CONFIG_STA_CMD_DISPR */
-
 
 #ifdef CONFIG_PCIE_TRX_MIT
 static void rtw_pcie_trx_mit_cb(void *drv_priv, u8 *cmd, u32 cmd_len, enum rtw_phl_status status)
@@ -162,6 +148,44 @@ exit:
 }
 #endif /* CONFIG_PCIE_TRX_MIT */
 
+#ifdef CONFIG_POST_CORE_KEEP_ALIVE
+u8 rtw_set_post_keep_alive_param(_adapter *padapter, u8 if_sta_chk_rx_bmp,
+			   u8 if_sta_chk_tx_bmp, u32 *if_ap_chk_sta_bmp)
+{
+	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
+	struct rtw_keep_alive_param klive_param = {0};
+	enum rtw_phl_status psts = RTW_PHL_STATUS_FAILURE;
+	u8 res = _FAIL;
+	bool need_post_chk = _FALSE;
+	u8 i;
+
+#ifdef CONFIG_AP_MODE
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		if (if_ap_chk_sta_bmp[i] != 0) {
+			need_post_chk = _TRUE;
+			break;
+		}
+	}
+#endif
+	/* skip post keep alive chk */
+	if (!need_post_chk && if_sta_chk_rx_bmp == 0 && if_sta_chk_tx_bmp == 0) {
+		res = _SUCCESS;
+		goto exit;
+	}
+
+	klive_param.sta_chk_rx_bmp = if_sta_chk_rx_bmp;
+	klive_param.sta_chk_tx_bmp = if_sta_chk_tx_bmp;
+	_rtw_memcpy(klive_param.ap_chk_sta_bmp, if_ap_chk_sta_bmp, sizeof(klive_param.ap_chk_sta_bmp));
+
+	psts = rtw_phl_set_wdog_state_keep_alive(dvobj->phl, true, &klive_param);
+	if (psts == RTW_PHL_STATUS_SUCCESS)
+		res = _SUCCESS;
+
+exit:
+	return res;
+}
+#endif
+
 #ifdef CONFIG_TDLS
 enum rtw_phl_status rtw_send_tdls_sync_msg(struct _ADAPTER *a)
 {
@@ -204,15 +228,15 @@ u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
 		/* ToDo CONFIG_RTW_MLD: [currently primary link only] */
 		struct _ADAPTER_LINK *padapter_link = GET_PRIMARY_LINK(padapter);
 
-		if (rtw_is_adapter_up(padapter) == _FALSE)
+		if (rtw_is_adapter_up(padapter) == _FALSE) {
+			RTW_ERR("%s Drop CMD: %s\n", __func__, rtw_cmd_name(pcmd));
 			goto free_cmd;
+		}
 
 		band_idx = ALINK_GET_HWBAND(padapter_link);
 	}
 
-#if defined(CONFIG_STA_CMD_DISPR) || defined(CONFIG_CMD_AP_DISPR)
 	switch (pcmd->cmdcode) {
-#ifdef CONFIG_STA_CMD_DISPR
 	case CMD_JOINBSS:
 		/*
 		* Call rtw_connect_cmd() in rtw_join_cmd_hdl()
@@ -241,8 +265,11 @@ u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
 		case EVT_DEL_STA:
 			if (MLME_IS_STA(padapter)) {
 				psts = rtw_disconnect_cmd(padapter, pcmd);
-				if (psts != RTW_PHL_STATUS_SUCCESS)
+				if (psts != RTW_PHL_STATUS_SUCCESS) {
+					if (psts == RTW_PHL_STATUS_RESOURCE)
+						res = _SUCCESS;
 					goto free_cmd;
+				}
 				/* pcmd & pcmd->parmbuf would be freed in framework */
 				res = _SUCCESS;
 				goto exit;
@@ -255,8 +282,7 @@ u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
 		/* not handled event would be processed later */
 		break;
 		}
-#endif /* CONFIG_STA_CMD_DISPR */
-#ifdef CONFIG_AP_CMD_DISPR
+
 	case CMD_CREATE_BSS:
 		{
 		psts = rtw_ap_start_cmd(pcmd);
@@ -266,10 +292,7 @@ u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
 		res = _SUCCESS;
 		goto exit;
 		}
-#endif /* CONFIG_AP_CMD_DISPR */
 
-
-#ifdef CONFIG_AP_CMD_DISPR
 	case CMD_SET_DRV_EXTRA:
 		{
 		struct drvextra_cmd_parm *parm;
@@ -284,14 +307,11 @@ u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
 		}
 		break;
 		}
-#endif /* CONFIG_AP_CMD_DISPR */
 
 	default:
 		break;
 	}
-#endif /* CONFIG_STA_CMD_DISPR || CONFIG_CMD_AP_DISPR */
 
-#ifdef CONFIG_CMD_GENERAL
 	psts = rtw_phl_cmd_enqueue(dvobj->phl,
 			band_idx,
 			MSG_EVT_LINUX_CMD_WRK,
@@ -302,117 +322,14 @@ u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
 	/* Send cmd fail */
 	if (psts != RTW_PHL_STATUS_SUCCESS)
 		goto free_cmd; /* keep res == _FAIL */
-#endif /* CONFIG_CMD_GENERAL */
 
 	res = _SUCCESS;
 	goto exit;
 
 free_cmd:
-	if (pcmd->cmdcode == CMD_SET_DRV_EXTRA) {
-		struct drvextra_cmd_parm *extra_parm =
-			(struct drvextra_cmd_parm *)pcmd->parmbuf;
-
-		if (extra_parm->pbuf && (extra_parm->size > 0))
-			rtw_mfree(extra_parm->pbuf, extra_parm->size);
-	}
-#ifdef CONFIG_80211BE_EHT
-	else if (pcmd->cmdcode == CMD_SET_MLME_EVT) {
-		struct rtw_evt_header *hdr =
-			(struct rtw_evt_header*)pcmd->parmbuf;
-
-		hdr = (struct rtw_evt_header*)pcmd->parmbuf;
-		if (hdr && hdr->id == EVT_JOINBSS) {
-			struct wlan_network *network =
-				(struct wlan_network *)(pcmd->parmbuf + sizeof(*hdr));
-			if (network && network->network.is_mld) {
-				rtw_free_cloned_mld_network(network->network.mld_network);
-				pcmd->parmbuf = NULL;
-			}
-		}
-	}
-#endif
 	rtw_free_cmd_obj(pcmd);
 
 exit:
 	return res;
 }
-#endif
-
-#ifdef CONFIG_FSM
-static void phl_run_core_cmd(void *priv, void *parm, bool discard)
-{
-	_adapter *padapter = (_adapter *)priv;
-	struct cmd_obj *pcmd = (struct cmd_obj *)parm;
-
-	rtw_run_cmd(padapter, pcmd, discard);
-}
-
-#define PHL_RES2RES(a) (a == RTW_PHL_STATUS_SUCCESS) ? _SUCCESS : _FAIL
-u32 rtw_enqueue_phl_cmd(struct cmd_obj *pcmd)
-{
-	u32 res = RTW_PHL_STATUS_FAILURE;
-	_adapter *padapter = pcmd->padapter;
-	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
-	struct phl_cmd_job job;
-	void *msg;
-
-	_rtw_memset(&job, 0, sizeof(job));
-
-	switch (pcmd->cmdcode) {
-	case CMD_SITE_SURVEY:
-	{
-		res = rtw_site_survey_fsm(padapter, pcmd);
-	}
-	break;
-	case CMD_SET_DRV_EXTRA:
-	{
-		struct drvextra_cmd_parm *parm;
-
-		parm = (struct drvextra_cmd_parm *)pcmd->parmbuf;
-
-		if ((parm->ec_id ==  MGNT_TX_WK_CID) &&
-			(rtw_cfg80211_get_is_roch(padapter))) {
-
-			rtw_phl_job_fill_fptr(dvobj->phl, &job,
-				phl_run_core_cmd, padapter,
-				pcmd, rtw_cmd_name(pcmd),
-				(pcmd->no_io) ? PWR_NO_IO : PWR_BASIC_IO);
-
-			res = rtw_phl_scan_off_ch_tx(
-				dvobj->phl, &job, sizeof(job));
-
-			if (res != RTW_PHL_STATUS_SUCCESS)
-				goto free_cmd;
-
-			return PHL_RES2RES(res);
-		}
-	}
-		fallthrough;
-	default:
-		rtw_phl_job_fill_fptr(dvobj->phl, &job,
-			phl_run_core_cmd, padapter,
-			pcmd, rtw_cmd_name(pcmd),
-			(pcmd->no_io) ? PWR_NO_IO : PWR_BASIC_IO);
-
-		res = phl_cmd_complete_job(dvobj->phl, &job);
-		if (res != RTW_PHL_STATUS_SUCCESS)
-			goto free_cmd;
-
-		return PHL_RES2RES(res);
-	}
-
-free_cmd:
-
-	if (pcmd->cmdcode == CMD_SET_DRV_EXTRA) {
-		struct drvextra_cmd_parm *extra_parm =
-			(struct drvextra_cmd_parm *)pcmd->parmbuf;
-
-		if (extra_parm->pbuf && extra_parm->size > 0)
-			rtw_mfree(extra_parm->pbuf, extra_parm->size);
-	}
-	rtw_free_cmd_obj(pcmd);
-
-	return PHL_RES2RES(res);
-}
-#endif /*CONFIG_FSM*/
 

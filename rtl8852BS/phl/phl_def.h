@@ -1,4 +1,4 @@
-﻿/******************************************************************************
+/******************************************************************************
  *
  * Copyright(c) 2019 - 2021 Realtek Corporation.
  *
@@ -56,9 +56,24 @@ enum phl_band_idx {
 	HW_BAND_MAX
 };
 
+
+#ifdef CONFIG_QOS_MG
+enum rtw_phl_qm_cap {
+	RTW_QM_QOS_MAP_SUP = BIT0,
+	RTW_QM_MSCS_SUP = BIT1,
+	RTW_QM_SCS_SUP = BIT2,
+	RTW_QM_DSCP_POL_SUP = BIT3,
+	RTW_QM_SCS_QOS_CHARAC_SUP = BIT4 /* SCS with QoS Characteristics */
+};
+#endif /* CONFIG_QOS_MG */
+
 #define RTW_RLINK_MAX (HW_BAND_MAX)
 #define RTW_ONE_LINK (1)
 #define RTW_RLINK_PRIMARY (0)
+
+#define GET_DEV_SW_CAP(_phl_com) (_phl_com->dev_sw_cap)
+#define GET_DEV_HW_CAP(_phl_com) (_phl_com->dev_hw_cap)
+#define GET_DEV_CAP(_phl_com) (_phl_com->dev_cap)
 
 /*
  * Refer to 802.11 spec (BE D1.3).
@@ -113,6 +128,26 @@ enum phl_ac_queue {
 	PHL_AC_QUEUE_TOTAL
 };
 
+#ifdef CONFIG_PHL_H2C_PKT_POOL_STATS_CHECK
+struct phl_h2c_pkt_alloc_cnt {
+	_os_atomic busy_h2c_pkt_cmd_cnt;
+	_os_atomic busy_h2c_pkt_data_cnt;
+	_os_atomic busy_h2c_pkt_ldata_cnt;
+	_os_atomic h2c_query_cnt;
+	_os_atomic h2c_mac_cnt;
+	_os_atomic h2c_bb_cnt;
+	_os_atomic h2c_rf_cnt;
+	_os_atomic h2c_btc_cnt;
+};
+
+enum rtw_phl_comm_module {
+	RTW_MODULE_MAC,	/* 0 */
+	RTW_MODULE_BB,	/* 1 */
+	RTW_MODULE_RF,	/* 2 */
+	RTW_MODULE_BTC,	/* 3 */
+};
+#endif
+
 enum phl_stat_info_query {
 	STAT_INFO_FA_ALL,
 	STAT_INFO_CCA_ALL,
@@ -134,8 +169,9 @@ enum phl_lifetime_queue {
 #define _CMD_DUMP_VW_CNT  1
 #endif
 
-#define PHL_MACID_MAX_ARRAY_NUM 8 /* 8x32=256 */
-#define PHL_MACID_MAX_NUM (PHL_MACID_MAX_ARRAY_NUM * 32)
+#define PHL_MACID_MAX_ARRAY_NUM 8
+/*#define PHL_MACID_MAX_NUM (PHL_MACID_MAX_ARRAY_NUM * 32)*//* 8x32=256 */
+#define PHL_MACID_MAX_NUM PHL_MAX_STA_NUM
 
 /**
  * struct rtw_chan_def - channel defination
@@ -156,6 +192,13 @@ struct rtw_chan_def {
 	u16 hw_value;
 	u32 center_freq1;
 	u32 center_freq2;
+	bool is_dfs;
+};
+
+enum rtw_phl_send_msg_status {
+	SEND_MSG_STS_UNSEND = 0,
+	SEND_MSG_STS_SEND_OK,
+	SEND_MSG_STS_SEND_FAIL
 };
 
 struct chg_opch_param {
@@ -163,7 +206,10 @@ struct chg_opch_param {
 	struct rtw_wifi_role_link_t *rlink;
 	struct rtw_chan_def new_chdef;
 	struct rtw_chan_def ori_chdef;
-	enum rtw_phl_status cmd_start_sts;
+	enum rtw_phl_status cmd_start_sts; /* enum rtw_phl_status */
+	bool start_msg_done;
+	bool send_end_msg_fail;
+	_os_lock lock;
 	void (*chg_opch_done)(void *priv,
 	                      u8 ridx,
 	                      struct rtw_wifi_role_link_t *rlink,
@@ -310,13 +356,33 @@ struct rtw_para_info_t {
 	u32 ext_para_file_buf_len;
 	u32 para_data_len;
 	u32 *para_data;
+	bool loaded;
 };
 
+#define regd_name_max_len 10
 #define regd_name_max_size 32
+#define regd_name_max_len_6g (regd_name_max_len + 4) /* + "_VLP" or "_LPI" or "_STD" */
+#define regd_name_max_size_6g 64
+
+struct ext_regd {
+	char name[regd_name_max_len];
+};
+
+struct ext_regd_6g {
+	char name[regd_name_max_len_6g];
+};
 
 #define RTW_PHL_EXT_REG_MATCH_NONE	0
 #define RTW_PHL_EXT_REG_MATCH_DOMAIN	BIT0
 #define RTW_PHL_EXT_REG_MATCH_COUNTRY	BIT1
+
+#define MAX_NUM_PWRLMT_EXT_REGD_MAP 32
+
+struct pwrlmt_ext_regd_map {
+	u16 domain;
+	char country[2];
+	char reg_name[regd_name_max_len];
+};
 
 struct rtw_para_pwrlmt_info_t {
 	enum rtw_para_src para_src;
@@ -328,8 +394,15 @@ struct rtw_para_pwrlmt_info_t {
 	u32 ext_para_file_buf_len;
 	u32 para_data_len;
 	u32 *para_data;
+	bool loaded;
 
-	char ext_regd_name[regd_name_max_size][10];
+	enum band_type band;
+#ifdef PHL_DYNAMIC_ALLOC_EXT_REGD_NAME
+	void *ext_regd_name; /* ext_regd or ext_regd_6g dynammic allocated array */
+	u32 ext_regd_name_size;
+#else
+	char ext_regd_name[regd_name_max_size_6g][regd_name_max_len_6g];
+#endif
 	u16 ext_regd_arridx;
 	u16 ext_reg_map_num;
 	u8 *ext_reg_codemap;
@@ -399,6 +472,7 @@ struct rtw_phl_handler {
 struct rtw_xmit_req;
 struct rtw_aoac_report;
 struct tx_local_buf;
+struct csi_ind_t;
 struct rtw_phl_evt_ops {
 	enum rtw_phl_status (*rx_process)(void *drv_priv);
 	enum rtw_phl_status (*tx_recycle)(void *drv_priv, struct rtw_xmit_req *txreq);
@@ -412,7 +486,8 @@ struct rtw_phl_evt_ops {
 #endif /* CONFIG_SYNC_INTERRUPT */
 	void (*ap_ps_sta_ps_change)(void *drv_priv, u8 role_id, u8 *sta_mac,
 	                            int power_save);
-	bool (*issue_null_data)(void *priv, u8 ridx, u8 lidx, bool ps);
+	bool (*issue_null_data)(void *priv, u8 ridx, u8 lidx, bool ps,
+	                        u8 module_id);
 
 #ifdef CONFIG_VW_REFINE
 	enum rtw_phl_status (*tx_dev_map)(void *phl, struct rtw_xmit_req *txreq);
@@ -425,6 +500,10 @@ struct rtw_phl_evt_ops {
 #endif
 
 	void (*tx_power_tbl_loaded)(void *drv_priv, bool target_loaded, bool limit_loaded);
+
+#ifdef CONFIG_PHL_CHANNEL_INFO_DIRECT_INDICATE
+	void (*csi_indicate)(struct csi_ind_t *csi_ind);
+#endif
 };
 
 /*
@@ -498,6 +577,7 @@ enum wr_chg_id {
 	WR_CHG_MADDR,
 	WR_CHG_AP_PARAM,
 	WR_CHG_EDCA_PARAM,
+	WR_CHG_MULTI_MU_EDCA_PARAM,
 	WR_CHG_MU_EDCA_PARAM,
 	WR_CHG_MU_EDCA_CFG,
 	WR_CHG_BSS_COLOR,
@@ -506,6 +586,8 @@ enum wr_chg_id {
 	WR_CHG_TRX_PATH,
 	WR_CHG_STBC_CFG,
 	WR_CHG_BCN_EARLY_RPT_CFG,
+	WR_CHG_LSN_DISCOV,
+	WR_CHG_FIX_ANT_DIV,
 	WR_CHG_MAX,
 };
 
@@ -516,9 +598,16 @@ enum rlink_status{
 	RLINK_STATUS_MAX = BIT7
 };
 
+enum rlink_bcn_stop_rson {
+	RLINK_BCN_STOP_RSON_DEFAULT,
+	RLINK_BCN_STOP_RSON_CORE,
+	RLINK_BCN_STOP_RSON_MAX
+};
+
 enum wr_status{
 	WR_STATUS_SUSPEND = BIT0,
 	WR_STATUS_HW_ALLOC_FAIL = BIT1,
+	WR_STATUS_LSN_DISCOV = BIT2,
 	WR_STATUS_LAT_SEN = BIT6, /* latency sensitive */
 	WR_STATUS_MAX = BIT7
 };
@@ -550,6 +639,8 @@ struct rtw_edca_param {
 	u32 param;
 };
 
+#define ACQ_MAX 4
+
 struct rtw_mu_edca_param {
 	u8 ac;
 	u8 aifsn;
@@ -557,16 +648,16 @@ struct rtw_mu_edca_param {
 	u8 timer;
 };
 
+struct rtw_multi_mu_edca_param {
+	u8 num;
+	struct rtw_mu_edca_param mu_edca[ACQ_MAX];
+};
+
 struct rtw_trx_path_param {
 	enum rf_path tx;
 	enum rf_path rx;
 	u8 tx_nss;
 	u8 rx_nss;
-};
-
-struct rtw_bcn_early_rpt_param {
-	u32 bcn_early;
-	u8 en;
 };
 
 enum conf_lvl {
@@ -780,35 +871,33 @@ enum phl_msg_evt_id {
 	MSG_EVT_HAL_INIT_OK = 12,
 	MSG_EVT_HAL_INIT_FAIL = 13,
 	MSG_EVT_MP_CMD_DONE = 14,
-	/* wow */
-	MSG_EVT_WOW_ENTER = 15,
-	MSG_EVT_WOW_LEAVE = 16,
-	MSG_EVT_WOW_WAKE_RSN = 17,
-	MSG_EVT_BCN_RESEND = 18,
-	MSG_EVT_DUMP_PLE_BUFFER = 19,
-	MSG_EVT_MP_RX_PHYSTS = 20,
-	MSG_EVT_ROLE_NTFY = 21,
-	MSG_EVT_RX_PSTS = 22,
-	MSG_EVT_SWCH_START = 23,
-	MSG_EVT_SWCH_DONE = 24,
-	MSG_EVT_DISCONNECT_PREPARE = 25,
-	MSG_EVT_DISCONNECT = 26,
-	MSG_EVT_DISCONNECT_END = 27,
-	MSG_EVT_TSF_SYNC_DONE = 28,
-	MSG_EVT_TX_RESUME = 29,
-	MSG_EVT_AP_START_PREPARE = 30,
-	MSG_EVT_AP_START = 31,
-	MSG_EVT_AP_START_END = 32,
-	MSG_EVT_AP_STOP_PREPARE = 33,
-	MSG_EVT_AP_STOP = 34,
-	MSG_EVT_AP_STOP_END = 35,
-	MSG_EVT_PCIE_TRX_MIT = 36,
-	MSG_EVT_BTC_TMR = 37,
-	MSG_EVT_BTC_FWEVNT = 38,
-	MSG_EVT_BTC_REQ_BT_SLOT = 39,
-	MSG_EVT_BTC_REQ = 40,
+	MSG_EVT_WOW_WAKE_RSN = 15,
+	MSG_EVT_BCN_RESEND = 16,
+	MSG_EVT_DUMP_PLE_BUFFER = 17,
+	MSG_EVT_MP_RX_PHYSTS = 18,
+	MSG_EVT_ROLE_NTFY = 19,
+	MSG_EVT_RX_PSTS = 20,
+	MSG_EVT_SWCH_START = 21,
+	MSG_EVT_SWCH_DONE = 22,
+	MSG_EVT_DISCONNECT_PREPARE = 23,
+	MSG_EVT_DISCONNECT = 24,
+	MSG_EVT_DISCONNECT_END = 25,
+	MSG_EVT_TSF_SYNC_DONE = 26,
+	MSG_EVT_TX_RESUME = 27,
+	MSG_EVT_AP_START_PREPARE = 28,
+	MSG_EVT_AP_START = 29,
+	MSG_EVT_AP_START_END = 30,
+	MSG_EVT_AP_STOP_PREPARE = 31,
+	MSG_EVT_AP_STOP = 32,
+	MSG_EVT_AP_STOP_END = 33,
+	MSG_EVT_PCIE_TRX_MIT = 34,
+	MSG_EVT_BTC_TMR = 35,
+	MSG_EVT_BTC_FWEVNT = 36,
+	MSG_EVT_BTC_REQ_BT_SLOT = 37,
+	MSG_EVT_BTC_REQ = 38,
 	/* ser*/
-	MSG_EVT_SER_L0_RESET = 41, /* L0 notify only */
+	MSG_EVT_SER_L0_RESET = 40, /* L0 notify only */
+	MSG_EVT_SER_PRE_M0_PREPARE = 41,
 	MSG_EVT_SER_M1_PAUSE_TRX = 42,
 	MSG_EVT_SER_IO_TIMER_EXPIRE = 43,
 	MSG_EVT_SER_FW_TIMER_EXPIRE = 44,
@@ -837,7 +926,7 @@ enum phl_msg_evt_id {
 	MSG_EVT_DFS_PAUSE_TX = 66,
 	MSG_EVT_ROLE_RECOVER = 67,
 	MSG_EVT_ROLE_SUSPEND = 68,
-	MSG_EVT_HAL_SET_L2_LEAVE = 69,
+	MSG_EVT_HAL_SET_WOWLAN = 69,
 	MSG_EVT_NOTIFY_HAL = 70,
 	MSG_EVT_ISSUE_BCN = 71,
 	MSG_EVT_FREE_BCN = 72,
@@ -917,13 +1006,6 @@ enum phl_msg_evt_id {
 	/* hw seq */
 	MSG_EVT_HW_SEQ_SETUP = 125,
 
-	/* TWT */
-	MSG_EVT_TWT_STA_ACCEPT = 126,
-	MSG_EVT_TWT_STA_TEARDOWN = 127,
-	MSG_EVT_TWT_GET_TWT = 128,
-	MSG_EVT_TWT_WAIT_ANNOUNCE = 129,
-	/* TWT end */
-
 	/* Lifetime */
 	MSG_EVT_LIFETIME_SETUP = 130,
 
@@ -976,6 +1058,30 @@ enum phl_msg_evt_id {
 
 	MSG_EVT_SET_MACID_PAUSE_AC = 154,
 	MSG_EVT_CLIENT_PS_ANNC = 155,
+
+	/* CONFIG_RTW_AP_BS_DECT */
+	MSG_EVT_BCCHG_COUNTDOWN_ZERO = 156,
+
+	/* Regulation*/
+	MSG_EVT_REGU_SET_CNTRY_CODE = 157,
+	MSG_EVT_SET_TAS_EN = 158,
+
+	MSG_EVT_EDCCA_CFG = 160,
+
+	/* TWT */
+	MSG_EVT_TWT_STA_ACCEPT = 170,
+	MSG_EVT_TWT_STA_TEARDOWN = 171,
+	MSG_EVT_TWT_GET_TWT = 172,
+	MSG_EVT_TWT_WAIT_ANNOUNCE = 173,
+	MSG_EVT_TWT_INFO_F_HDR = 185,
+	/* TWT end */
+
+	MSG_EVT_GET_USB_MODE_STATUS = 190,
+	MSG_EVT_GET_U3_PERF_MODE = 191,
+#ifdef CONFIG_PHL_CUSTOM_FEATURE_USB
+	MSG_EVT_SET_USB_SW_ABILITY = 192,
+#endif
+
 	/* dbg */
 	MSG_EVT_DBG_SIP_REG_DUMP = 200,
 	MSG_EVT_DBG_FULL_REG_DUMP = 201,
@@ -995,7 +1101,14 @@ enum phl_msg_evt_id {
 	MSG_EVT_PKT_EVT_NTFY = 230,
 	MSG_EVT_CSI_TX_RESULT = 231,
 	MSG_EVT_BCN_TSF_REPORT = 232,
+	MSG_EVT_NAN_ENTRY = 233,
 
+	/* For Multi Role Connection optimization */
+	MSG_EVT_P2P_SESSION_NO_LINK = 235,
+	MSG_EVT_P2P_SESSION_LINKED = 236,
+
+	MSG_EVT_ANN_RX1SS = 240, /* Announce rx 1ss */
+	MSG_EVT_ANN_RX_MAXSS = 241, /* Announce rx nss for max cap */
 	/* sub module IO */
 	MSG_EVT_NOTIFY_BB = 300,
 	MSG_EVT_NOTIFY_RF = 301,
@@ -1008,12 +1121,25 @@ enum phl_msg_evt_id {
 	MSG_EVT_SCANOFLD_SWITCH = 403,
 	MSG_EVT_SCANOFLD_CHKPT_TIMER = 404,
 
-	/* Tx rpt */
+	/* USR Tx rpt */
 	MSG_EVT_USR_TX_RPT = 410,
+	MSG_EVT_USR_FRAME_ACT_RPT = 411,
+
+	/* MP FT2 Test */
+	MSG_EVT_FT2_L12_TEST = 420,
+
+	#ifdef CONFIG_DBCC_P2P_BG_LISTEN
+	MSG_EVT_CONNECT_END_DBCC_EN = 500,
+	MSG_EVT_DISCONNECT_END_DBCC_EN = 501,
+	MSG_EVT_CONNECT_CMD_DBCC_DIS = 502,
+	MSG_EVT_DISCONNECT_CMD_DBCC_EN = 503,
+	#endif
 
 	/* Add EVT-ID for linux core cmd temporality */
 	MSG_EVT_LINUX_CMD_WRK = 888,
 	MSG_EVT_LINUX_CMD_WRK_TRI_PS = 889,
+	/* Diagnostic Event */
+	MSG_EVT_DIAGNOSTIC = 2000,
 	/* LED */
 	MSG_EVT_LED_TICK = 5000,
 	MSG_EVT_LED_MANUAL_CTRL = 5001,
@@ -1076,6 +1202,7 @@ enum phy_fg_cmd_req_opcode {
 #ifdef RTW_WKARD_CMD_SCAN_EXTEND_ACTION_FRAME_TX
 	FG_REQ_OP_NOTIFY_ACTION_FRAME_TX,
 #endif
+	FG_REQ_OP_NOTIFY_BACKOP_IMMED,
 	FG_REQ_OP_MAX
 };
 
@@ -1315,9 +1442,20 @@ enum rtw_fw_rsn {
 	RTW_FW_RSN_MAX
 };
 
+enum rtw_fw_type {
+	RTW_FW_NIC, /* 1 */
+	RTW_FW_WOWLAN, /* 2 */
+	RTW_FW_AP, /* 3 */
+	RTW_FW_ROM, /* 4 */
+	RTW_FW_SPIC, /* 5 */
+	RTW_FW_VRAP, /* 6 */
+	RTW_FW_NIC_CE, /* 7 */
+	RTW_FW_MAX
+};
+
 struct rtw_fw_cap_t {
 	enum rtw_fw_src fw_src;
-	u32 offload_cap;
+	enum rtw_fw_type fw_type;
 	u8 dlram_en;
 	u8 dlrom_en;
 };
@@ -1366,6 +1504,7 @@ struct protocol_cap_t {
 	u16 num_ampdu;
 	u8 ampdu_len_exp; /* rx ampdu cap */
 	u8 ampdu_density:3;	/* rx ampdu cap */
+	u8 max_amsdu_num:2; /*  0: no lim, 1: 32, 2: 16, 3: 8 */
 	u8 amsdu_in_ampdu:1; /* rx ampdu cap */
 	u8 max_amsdu_len:2; /* 0: 4k, 1: 8k, 2: 11k */
 	u8 htc_rx:1;
@@ -1388,9 +1527,9 @@ struct protocol_cap_t {
 	u8 sgi_40:1;		/* HT Short GI for 40 MHz */
 	u8 sgi_80:1;		/* VHT Short GI for 80 MHz */
 	u8 sgi_160:1;		/* VHT Short GI for 160/80+80 MHz */
-	struct rtw_edca_param edca[4]; 	/* Access Category, 0:BE, 1:BK, 2:VI, 3:VO */
+	struct rtw_edca_param edca[ACQ_MAX]; 	/* Access Category, 0:BE, 1:BK, 2:VI, 3:VO */
 	u8 mu_qos_info;
-	struct rtw_mu_edca_param mu_edca[4];
+	struct rtw_mu_edca_param mu_edca[ACQ_MAX];
 
 	u16 tid2link_ul[WMM_AC_TID_NUM]; /* EHT: Tid-to-Link, uplink */
 	u16 tid2link_dl[WMM_AC_TID_NUM]; /* EHT: Tid-to-Link, downlink */
@@ -1496,6 +1635,10 @@ struct protocol_cap_t {
 
 	u8 ppe_th_present:1;
 	u8 er_su_gi_ltf; /* same define as u8 ltf_gi; */
+#ifdef CONFIG_QOS_MG
+	u16 qm_cap; /* enum rtw_phl_qm_cap */
+#endif /* CONFIG_QOS_MG */
+
 };
 
 #define EXT_CAP_LIMIT_2G_RX_STBC	BIT0
@@ -1525,6 +1668,78 @@ enum rtw_pcie_ltr_state {
 	RTW_PCIE_LTR_SW_IDLE = 2
 };
 
+#ifdef CONFIG_PCI_HCI
+enum RTW_PHL_PCIE_L1DLY{
+	RTW_PHL_PCIE_L1DLY_16US = 0,
+	RTW_PHL_PCIE_L1DLY_32US = 1,
+	RTW_PHL_PCIE_L1DLY_64US = 2,
+	RTW_PHL_PCIE_L1DLY_INFI = 3,
+	RTW_PHL_PCIE_L1DLY_R_ERR = 0xFD,
+	RTW_PHL_PCIE_L1DLY_DEF = 0xFE,
+	RTW_PHL_PCIE_L1DLY_IGNORE = 0xFF
+};
+
+enum RTW_PHL_PCIE_L0SDLY{
+	RTW_PHL_PCIE_L0SDLY_1US = 0,
+	RTW_PHL_PCIE_L0SDLY_2US = 1,
+	RTW_PHL_PCIE_L0SDLY_3US = 2,
+	RTW_PHL_PCIE_L0SDLY_4US = 3,
+	RTW_PHL_PCIE_L0SDLY_5US = 4,
+	RTW_PHL_PCIE_L0SDLY_6US = 5,
+	RTW_PHL_PCIE_L0SDLY_7US = 6,
+	RTW_PHL_PCIE_L0SDLY_R_ERR = 0xFD,
+	RTW_PHL_PCIE_L0SDLY_DEF = 0xFE,
+	RTW_PHL_PCIE_L0SDLY_IGNORE = 0xFF
+};
+
+enum RTW_PHL_PCIE_CLKDLY{
+	RTW_PHL_PCIE_CLKDLY_0 = 0,
+	RTW_PHL_PCIE_CLKDLY_5US = 1,
+	RTW_PHL_PCIE_CLKDLY_6US = 2,
+	RTW_PHL_PCIE_CLKDLY_11US = 3,
+	RTW_PHL_PCIE_CLKDLY_15US = 4,
+	RTW_PHL_PCIE_CLKDLY_19US = 5,
+	RTW_PHL_PCIE_CLKDLY_25US = 6,
+	RTW_PHL_PCIE_CLKDLY_30US = 7,
+	RTW_PHL_PCIE_CLKDLY_38US = 8,
+	RTW_PHL_PCIE_CLKDLY_50US = 9,
+	RTW_PHL_PCIE_CLKDLY_64US = 10,
+	RTW_PHL_PCIE_CLKDLY_100US = 11,
+	RTW_PHL_PCIE_CLKDLY_128US = 12,
+	RTW_PHL_PCIE_CLKDLY_150US = 13,
+	RTW_PHL_PCIE_CLKDLY_192US = 14,
+	RTW_PHL_PCIE_CLKDLY_200US = 15,
+	RTW_PHL_PCIE_CLKDLY_300US = 16,
+	RTW_PHL_PCIE_CLKDLY_400US = 17,
+	RTW_PHL_PCIE_CLKDLY_500US = 18,
+	RTW_PHL_PCIE_CLKDLY_1MS = 19,
+	RTW_PHL_PCIE_CLKDLY_3MS = 20,
+	RTW_PHL_PCIE_CLKDLY_5MS = 21,
+	RTW_PHL_PCIE_CLKDLY_10MS = 22,
+	RTW_PHL_PCIE_CLKDLY_V1_0 = 23,
+	RTW_PHL_PCIE_CLKDLY_V1_16US = 24,
+	RTW_PHL_PCIE_CLKDLY_V1_32US = 25,
+	RTW_PHL_PCIE_CLKDLY_V1_64US = 26,
+	RTW_PHL_PCIE_CLKDLY_V1_80US = 27,
+	RTW_PHL_PCIE_CLKDLY_V1_96US = 28,
+	RTW_PHL_PCIE_CLKDLY_R_ERR = 0xFD,
+	RTW_PHL_PCIE_CLKDLY_DEF = 0xFE,
+	RTW_PHL_PCIE_CLKDLY_IGNORE = 0xFF
+};
+
+
+struct rtw_pcie_cfgspc_param {
+	enum rtw_pcie_bus_func_cap_t l0s_ctrl;
+	enum rtw_pcie_bus_func_cap_t l1_ctrl;
+	enum rtw_pcie_bus_func_cap_t l1ss_ctrl;
+	enum rtw_pcie_bus_func_cap_t wake_ctrl;
+	enum rtw_pcie_bus_func_cap_t crq_ctrl;
+	u8 clkdly;
+	u8 l0sdly;
+	u8 l1dly;
+};
+#endif
+
 struct bus_sw_cap_t {
 #ifdef CONFIG_PCI_HCI
 	enum rtw_pcie_bus_func_cap_t l0s_ctrl;
@@ -1540,6 +1755,7 @@ struct bus_sw_cap_t {
 	u32 rpbuf_num;
 	u32 rxbuf_size;
 	u32 rpbuf_size;
+	u32 read_txbd_lvl; /* 0: always read, 1: < 1/2 tx res, 2: < 1/4 tx res */
 	u8 clkdly_ctrl;
 	u8 l0sdly_ctrl;
 	u8 l1dly_ctrl;
@@ -1549,6 +1765,11 @@ struct bus_sw_cap_t {
 	u16 ltr_sw_ctrl_thre; /* [15:8] tx [7:0] rx */
 	u8 ltr_sw_ctrl;
 	u8 ltr_hw_ctrl;
+
+#ifdef RTW_WKARD_DYNAMIC_PCIE_GEN
+	u8 pcie_gen_dm_en;
+#endif
+
 #elif defined (CONFIG_USB_HCI)
 	u32 tx_buf_size;
 	u32 tx_buf_num;
@@ -1556,6 +1777,7 @@ struct bus_sw_cap_t {
 	u32 tx_mgnt_buf_num;
 	u32 tx_h2c_buf_num;
 	u32 rx_buf_size;
+	u32 rx_buf_align_size;
 	u32 rx_buf_num;
 	u32 in_token_num;
 #elif defined(CONFIG_SDIO_HCI)
@@ -1583,6 +1805,7 @@ struct bus_cap_t {
 	u32 rpbuf_num;
 	u32 rxbuf_size;
 	u32 rpbuf_size;
+	u32 read_txbd_th;
 	u8 clkdly_ctrl;
 	u8 l0sdly_ctrl;
 	u8 l1dly_ctrl;
@@ -1591,6 +1814,11 @@ struct bus_cap_t {
 	u8 ltr_init_state;
 	u8 ltr_sw_ctrl;
 	u8 ltr_hw_ctrl;
+
+#ifdef RTW_WKARD_DYNAMIC_PCIE_GEN
+	u8 pcie_gen_dm_en;
+#endif
+
 #elif defined (CONFIG_USB_HCI)
 	u32 tx_buf_size;
 	u32 tx_buf_num;
@@ -1598,6 +1826,7 @@ struct bus_cap_t {
 	u32 tx_mgnt_buf_num;
 	u32 tx_h2c_buf_num;
 	u32 rx_buf_size;
+	u32 rx_buf_align_size;
 	u32 rx_buf_num;
 	u32 in_token_num;
 #elif defined(CONFIG_SDIO_HCI)
@@ -1617,10 +1846,11 @@ struct bus_cap_t {
 #define DELETE_ALL 0xFF
 #define IGNORE_CFG_ID 0xFF
 #define IGNORE_MACID 0xFF
-
+#define MAX_BTWT_PARA_SET 3
 enum rtw_phl_twt_sup_cap {
 	RTW_PHL_TWT_REQ_SUP = BIT(0), /* REQUESTER */
-	RTW_PHL_TWT_RSP_SUP = BIT(1)/* RESPONDER */
+	RTW_PHL_TWT_RSP_SUP = BIT(1), /* RESPONDER */
+	RTW_PHL_TWT_BC_SUP = BIT(2)
 };
 
 enum rtw_phl_nego_type {
@@ -1697,8 +1927,31 @@ struct rtw_phl_twt_flow_field{
 /*phl_twt_setup_info Start*/
 
 /*Broadcast TWT Parameter Set field*/
-struct rtw_phl_bcast_twt_para_set{
-	u8 reserved; /*todo*/
+struct rtw_phl_btwt_i {
+	u8 rtwt_tfc_prsnt : 1; /* Restricted TWT Traffic Info Present */
+	u8 rsvd : 2;
+	u8 btwt_id : 5;
+	u8 btwt_prstnc; /* Broadcast TWT Persistence */
+};
+
+struct rtw_phl_btwt_req_type {
+	u8 twt_request;
+	enum rtw_phl_setup_cmd twt_setup_cmd; /*twt setup command*/
+	u8 trigger;
+	u8 lst_bc_para_set; /* Last Broadcast Parameter Set */
+	enum rtw_phl_flow_type flow_type;
+	u8 btwt_rcmd; /* Broadcast TWT Recommendation */
+	u8 twt_wake_int_exp; /*twt wake interval exponent*/
+	u8 rsvd;
+};
+
+struct rtw_phl_bcast_twt_para_set {
+	struct rtw_phl_btwt_req_type req_type;
+	u32 target_wake_t_h;
+	u32 target_wake_t_l;
+	u8 nom_min_twt_wake_dur; /*nominal minimum twt wake duration*/
+	u16 twt_wake_int_mantissa; /*twt wake interval mantissa*/
+	struct rtw_phl_btwt_i btwt_i;
 };
 
 /*Individual TWT Parameter Set field*/
@@ -1728,20 +1981,21 @@ struct rtw_phl_indiv_twt_para_set{
 };
 
 struct rtw_phl_twt_control{
-	enum rtw_phl_nego_type nego_type; /*negotiation type*/
-	enum rtw_phl_wake_dur_unit wake_dur_unit; /*wake duration unit*/
 	u8 ndp_paging_indic; /*ndp paging indicator*/
 	u8 responder_pm_mode;
+	enum rtw_phl_nego_type nego_type; /*negotiation type*/
 	u8 twt_info_frame_disable; /*twt information frame disable*/
+	enum rtw_phl_wake_dur_unit wake_dur_unit; /*wake duration unit*/
 };
 struct rtw_phl_twt_element{
 /* element info*/
 	/*control filed*/
 	struct rtw_phl_twt_control twt_ctrl;
+	u8 num_btwt_para;
 	/*twt para info*/
 	union {
 		struct rtw_phl_indiv_twt_para_set i_twt_para_set;
-		struct rtw_phl_bcast_twt_para_set b_twt_para_set;
+		struct rtw_phl_bcast_twt_para_set b_twt_para_set[MAX_BTWT_PARA_SET];
 	} info;
 };
 
@@ -1752,6 +2006,17 @@ struct rtw_phl_twt_setup_info{
 };
 /*phl_twt_setup_info End*/
 
+
+/* TWT Information start */
+struct rtw_phl_twt_info_f {
+	u8 twt_flow_id;
+	u8 rsp_req;
+	u8 next_twt_req;
+	u8 next_twt_size;
+	u8 all_twt;
+	u64 next_twt;
+};
+/* TWT Information end */
 
 /*phl_twt_info Start*/
 struct rtw_twt_sta_info{
@@ -1791,6 +2056,11 @@ struct rtw_phl_twt_sta_teardown_i{
 	struct rtw_phl_twt_flow_field twt_flow;
 	void (*teardown_done)(void *priv, struct rtw_phl_stainfo_t *sta,
 			      enum rtw_phl_status sts);
+};
+
+struct rtw_phl_twt_info_f_hdr_i{
+	struct rtw_phl_stainfo_t *sta;
+	struct rtw_phl_twt_info_f info_f;
 };
 
 /*
@@ -1877,11 +2147,13 @@ enum phl_ps_pwr_lvl {
  * BIT 0 : by core initialization setting
  * BIT 1 : by debug flow setting
  * BIT 2 : by battery change
+ * BIT 3 : by bcn loss detection
  */
 enum phl_ps_rt_rson {
 	PS_RT_DEBUG = BIT0,
 	PS_RT_CORE_INIT = BIT1,
 	PS_RT_BATTERY_CHG = BIT2,
+	PS_RT_BCN_LOSS = BIT3,
 };
 #define PS_RT_RSON_NONE 0
 
@@ -1952,8 +2224,11 @@ struct rtw_ps_cap_t {
 
 	struct rtw_ps_defer_para defer_para;
 	enum rtw_lps_adv_cap lps_adv_cap;
+	u8 lps_force_tx;
+	u8 lps_intensive_trx_lvl;
+	bool lps_intensive_chk;
 
-	bool lps_pause_tx;
+	bool ps_pause_tx; /* cannot tx under low power state */
 	/* wow lps */
 	u8 lps_wow_en;
 	u8 lps_wow_cap;
@@ -1982,6 +2257,69 @@ struct rtw_rsc_mode {
 	u8 rsc_6g : 2;
 	u8 rsvd : 2;
 };
+
+enum dump_cfg_option {
+	DUMP_CFG_IO_ALLOW = BIT0,
+	DUMP_CFG_FW_LOG_ALLOW = BIT1,
+};
+
+#define IS_IO_DUMP_ALLOWED(_phl_com) (_phl_com->dbg_cfg.dump_cfg & DUMP_CFG_IO_ALLOW)
+#define SET_IO_DUMP_ALLOWED(_phl_com) (_phl_com->dbg_cfg.dump_cfg |= DUMP_CFG_IO_ALLOW)
+#define CLR_IO_DUMP_ALLOWED(_phl_com) (_phl_com->dbg_cfg.dump_cfg &= ~DUMP_CFG_IO_ALLOW)
+#define IS_FW_LOG_DUMP_ALLOWED(_phl_com) (_phl_com->dbg_cfg.dump_cfg & DUMP_CFG_FW_LOG_ALLOW)
+#define SET_FW_LOG_DUMP_ALLOWED(_phl_com) (_phl_com->dbg_cfg.dump_cfg |= DUMP_CFG_FW_LOG_ALLOW)
+#define CLR_FW_LOG_DUMP_ALLOWED(_phl_com) (_phl_com->dbg_cfg.dump_cfg &= ~DUMP_CFG_FW_LOG_ALLOW)
+
+#ifdef CONFIG_BTCOEX
+#define GET_DEV_BTC_CAP(_phl_com) (GET_DEV_CAP(_phl_com).btc_cap_i)
+#define GET_DEV_SW_BTC_CAP(_phl_com) (GET_DEV_SW_CAP(_phl_com).btc_cap_i)
+#define GET_DEV_HW_BTC_CAP(_phl_com) (GET_DEV_HW_CAP(_phl_com).btc_cap_i)
+
+enum rtw_btc_deg_wifi_cap {
+	BTC_DRG_WIFI_CAP_NONE = 0,
+	BTC_DRG_WIFI_CAP_TRX1SS = BIT0
+};
+
+struct btc_cap_info {
+	u16 btc_deg_wifi_cap; /* enum rtw_btc_deg_wifi_cap */
+};
+#endif /* CONFIG_BTCOEX */
+
+enum rtw_btc_esoc_type {
+	BTC_EXT_SOC_NONE,
+	BTC_EXT_SOC_8761,
+	BTC_EXT_SOC_8771,
+	BTC_EXT_SOC_SILAB_MG21,
+	BTC_EXT_SOC_NORDI_NRF52840,
+	BTC_EXT_SOC_MAX
+};
+
+struct rtw_phl_dbg_bb {
+	u32 bb_init_ctrl_opt;
+	u32 bb_init_ctrl_val;
+};
+
+struct rtw_phl_dbg_mac {
+	u8 mac_wow_fw_dbg;
+};
+
+struct rtw_phl_dbg_cfg_t {
+	/*PHL or MISC section*/
+#ifdef DBG_DUMP_TX_COUNTER
+	bool dbg_dump_tx;
+	u8 dbg_dump_tx_bidx;
+#endif
+
+	/*HALBB section*/
+	struct rtw_phl_dbg_bb bb_cfg;
+	/* HALMAC section */
+	struct mac_ax_fw_log fw_log_info;
+	struct rtw_phl_dbg_mac mac_cfg;
+
+	/* refs. enum dump_cfg_option */
+	u8 dump_cfg;
+};
+
 struct phy_sw_cap_t {
 	struct rtw_para_info_t mac_reg_info;
 	struct rtw_para_info_t bb_phy_reg_info;
@@ -2065,6 +2403,9 @@ struct dev_cap_t {
 #ifdef CONFIG_PHL_TWT
 	u8 twt_sup;
 #endif /* CONFIG_PHL_TWT */
+#ifdef CONFIG_PHL_NAN
+	bool nan_sup;
+#endif
 
 	struct rtw_wow_cap_t wow_cap;
 	struct rtw_ps_cap_t ps_cap;
@@ -2075,6 +2416,11 @@ struct dev_cap_t {
 	u8 domain;
 	u8 domain_6g;
 	u8 btc_mode;
+	enum rtw_btc_esoc_type btc_esoc_type;
+	u8 btc_ant_iso_db;
+#ifdef CONFIG_BTCOEX
+	struct btc_cap_info btc_cap_i;
+#endif /* CONFIG_BTCOEX */
 	u8 ap_ps;           /* support for AP mode PS in PHL */
 	u8 pwrbyrate_off;
 	u8 pwrlmt_type;
@@ -2093,8 +2439,8 @@ struct dev_cap_t {
 	u32 rfk_cap;
 	u8 sgi_160_sup;
 	u8 rpq_agg_num; /* 0: no adjust, use mac default size: 121 */
+	u8 rpq_tmr; /* unit: 32us, 0: no adjust, use mac default size: 0xFF */
 	bool quota_turbo;
-	bool logo_test;
 	u8 band_sup;
 	u8 bw_sup;
 
@@ -2111,10 +2457,33 @@ struct dev_cap_t {
 	u8 min_tx_duty;
 	u8 thermal_threshold;
 #endif
+#ifdef CONFIG_PHL_IO_OFLD
+	bool io_ofld;
+#endif
 #ifdef CONFIG_PHL_SCANOFLD
 	bool scan_ofld;
 #endif
+#ifdef CONFIG_PHL_CHSWOFLD
+	bool chsw_ofld;
+#endif
+
+#ifdef CONFIG_PHL_CHANNEL_INFO
+	bool sensing_csi;
+#endif
+
 	u8 antdiv_sup;
+
+#ifdef CONFIG_PHL_FW_DUMP_EFUSE
+	bool efuse_dump_ofld;
+	bool adie_efuse_dump_ofld;
+#endif
+
+	u8 disable_dyn_txpwr; /* Whether to disable Dynamic Transmit Power Control. default 0 */
+
+#ifdef CONFIG_PHL_RFK_FCS_SUPPPORT
+	u8 rfk_fcs_sup;
+	u8 rfk_fcs_num;
+#endif
 };
 
 #ifdef RTW_PHL_BCN //phl def
@@ -2345,6 +2714,9 @@ enum rtw_rxfltr_type_mode {
 	RX_FLTR_TYPE_MODE_CHAN_INFO_DIS,
 #endif
 	RX_FLTR_TYPE_MODE_MONITOR,
+#ifdef CONFIG_PHL_TEST_MP
+	RX_FLTR_TYPE_MODE_MP,
+#endif
 	RX_FLTR_TYPE_MODE_MAX
 };
 
@@ -2432,6 +2804,7 @@ struct rtw_wifi_role_link_t {
 								   /*Can be changed in the future*/
 	u8 hw_port;                    /*MAC HW Port*/
 	enum rlink_status status;
+	u8 bcn_stop;			/* bitmap for rlink_bcn_stop_rson */
 
 	/*
 	 * final capability of role from intersection of
@@ -2453,8 +2826,8 @@ struct rtw_wifi_role_link_t {
 	struct rtw_bcn_info_cmn bcn_cmn;
 	u8 hw_mbssid;
 	/* BSS Parameters Change Count */
-	u8 bss_params_chg_cnt;
 #endif
+	u8 bss_params_chg_cnt;
 	u8 dtim_period;
 	u8 mbid_num;
 	u32 hiq_win;
@@ -2464,6 +2837,7 @@ struct rtw_wifi_role_link_t {
 	struct rtw_chan_ctx *chanctx;  /*point to chanctx*/
 
 	struct phl_queue assoc_sta_queue;
+	struct phl_queue ext_sta_queue;
 };
 
 struct rtw_wifi_role_t {
@@ -2494,6 +2868,7 @@ struct rtw_wifi_role_t {
 #endif
 
 	struct phl_queue assoc_mld_queue;
+	struct phl_queue ext_mld_queue;
 	u8 rlink_num;
 	struct rtw_wifi_role_link_t rlink[RTW_RLINK_MAX];
 };
@@ -2551,7 +2926,7 @@ struct rtw_stats {
 	u32 txreq_num;
 	u32 rx_rate;
 	u32 rx_rate_nmr[RTW_DATA_RATE_HE_NSS4_MCS11 +1];
-	u64 ser_event[9]; /* RTW_PHL_SER_MAX */
+	u64 ser_event[10]; /* RTW_PHL_SER_MAX */
 	struct rtw_stats_tp txtp;
 	struct rtw_stats_tp rxtp;
 	struct rtw_traffic_t tx_traffic;
@@ -2570,7 +2945,6 @@ enum sta_chg_id {
 	STA_CHG_RAMASK,
 	STA_CHG_VCS,
 	STA_CHG_SEC_MODE,
-	STA_CHG_MBSSID,
 	STA_CHG_RA_GILTF,
 	STA_CHG_MAX
 };
@@ -2609,6 +2983,443 @@ struct phl_txsc_entry {
 };
 #endif
 
+#ifdef CONFIG_QOS_MG
+
+#define MAX_SCS_DESCRIPTOR 5
+#define MAX_TCLAS_ELE 3
+#define MAX_TCLAS_CLASSIFIER_FILTER 20
+#define MAX_DOM_NAME_LEN 50
+#define MAX_QOS_MG_ELE_NUM 4
+#define MAX_TEMP_SCS_STATUS 10
+#define MAX_SCS_INFO_BYTES 354
+
+enum scs_request_type {
+	SCS_ADD,
+	SCS_REMOVE,
+	SCS_CHANGE,
+	SCS_PROCESSED
+};
+
+enum scs_req_status {
+	SCS_REQ_SUCCESS = 0,
+	INSUFFICIENT_TCLAS_PROCESSING_RESOURCES = 57,
+	REQUESTED_TCLAS_NOT_SUPPORTED = 80,
+	TCLAS_RESOURCES_EXHAUSTED = 81,
+	TCLAS_PROCESSING_TERMINATED = 97,
+	TCLAS_PROCESSING_TERMINATED_INSUFFICIENT_QOS = 128,
+	TCLAS_PROCESSING_TERMINATED_POLICY_CONFLICT = 129,	/*Requested TCLAS processing has been terminated by the AP due to conflict with higher layer QoS policies*/
+	SCS_REQ_TCLAS_LENGHT_FAULT = 254,
+	SCS_REQ_TCLAS_PROCESSING_FAULT = 255
+};
+
+enum classifier_type {
+	CLSFR_TYPE_0	= 0,
+	CLSFR_TYPE_1	= 1,
+	CLSFR_TYPE_2	= 2,
+	CLSFR_TYPE_3	= 3,
+	CLSFR_TYPE_4	= 4,
+	CLSFR_TYPE_5	= 5,
+	CLSFR_TYPE_6	= 6,
+	CLSFR_TYPE_7	= 7,
+	CLSFR_TYPE_8	= 8,
+	CLSFR_TYPE_9	= 9,
+	CLSFR_TYPE_10	= 10
+};
+
+enum rtw_phl_scs_req_tp {
+	SCS_REQ_ADD = 0,
+	SCS_REQ_REMOVE = 1,
+	SCS_REQ_CHG = 2
+};
+
+struct rtw_phl_tclas_ipv4 {
+	u8 src_ip[4];
+	u8 dst_ip[4];
+};
+
+struct rtw_phl_tclas_ipv6 {
+	u8 src_ip[16];
+	u8 dst_ip[16];
+};
+struct rtw_phl_tclas_type0 {
+	u8 mask;
+	u8 source_addr[6];
+	u8 destination_addr[6];
+	u16 type;
+};
+
+struct rtw_phl_tclas_type1 {
+	u8 mask;
+	u8 version;
+	u8 src_ip[4];
+	u8 dst_ip[4];
+	u16 src_port;
+	u16 dst_port;
+	u8 dscp;
+	u8 protocol;
+	u8 reserved;
+};
+struct rtw_phl_tclas_type2 {
+	u8 mask;
+	u8 tci;
+};
+struct rtw_phl_tclas_type3 {
+	u8 mask;
+	u16 offset;
+	u8 filter_value[MAX_TCLAS_CLASSIFIER_FILTER];
+	u8 filter_mask[MAX_TCLAS_CLASSIFIER_FILTER];
+};
+struct rtw_phl_tclas_type4 {
+	u8 mask;
+	u8 version;
+	union {
+		struct rtw_phl_tclas_ipv4 v4;
+		struct rtw_phl_tclas_ipv6 v6;
+	}ip;
+	u16 src_port;
+	u16 dst_port;
+	u8 dscp;
+	u8 prot_or_nhdr;
+	u8 flow_lbl[3];
+};
+struct rtw_phl_tclas_type5 {
+	u8 mask;
+	u8 up_or_pcp;
+	u8 dei;
+	u8 vid;
+};
+struct rtw_phl_tclas_type6 {
+	u32 mask;
+	u32 frame_control;
+	u32 duration;
+	u8 addr1[12];
+	u8 addr2[12];
+	u8 addr3[12];
+	u32 sequence_control;
+	u8 addr4[12];
+	u32 qos_control;
+	u64 ht_control;
+};
+struct rtw_phl_tclas_type7 {
+	u32 mask;
+	u32 frame_control;
+	u8 addr1[12];
+	u8 addr2[12];
+	u32 sequence_control;
+	u8 addr3[12];
+	u8 addr4[12];
+};
+struct rtw_phl_tclas_type8 {
+	u32 mask;
+	u32 frame_control;
+	u8 addr1[12];
+	u8 addr2[12];
+	u32 sequence_control;
+	u8 addr3[12];
+	u8 addr4[12];
+};
+struct rtw_phl_tclas_type9 {
+	u8 mask;
+	u32 frame_control;
+	u8 addr1[12];
+	u8 addr2[12];
+	u32 sequence_control;
+};
+struct rtw_phl_tclas_type10 {
+	u8 protocol_instance;
+	u8 protocol_num_nexthdr;
+	u8 filter_byte;
+	u8 filter_value[MAX_TCLAS_CLASSIFIER_FILTER];
+	u8 filter_mask[MAX_TCLAS_CLASSIFIER_FILTER];
+};
+
+struct rtw_phl_tclas_clf {
+	u8 tp;
+	union {
+		struct rtw_phl_tclas_type0 t0;
+		struct rtw_phl_tclas_type1 t1;
+		struct rtw_phl_tclas_type2 t2;
+		struct rtw_phl_tclas_type3 t3;
+		struct rtw_phl_tclas_type4 t4;
+		struct rtw_phl_tclas_type5 t5;
+		struct rtw_phl_tclas_type6 t6;
+		struct rtw_phl_tclas_type7 t7;
+		struct rtw_phl_tclas_type8 t8;
+		struct rtw_phl_tclas_type9 t9;
+		struct rtw_phl_tclas_type10 t10;
+	} u;
+};
+
+struct rtw_phl_intra_ac_priority {
+	u8 ac_up : 3;
+	u8 alternate_queue : 1;
+	u8 drop_eligibility : 1;
+	u8 reserved : 3;
+};
+
+struct rtw_phl_tclas_element {
+	u8 valid; /* sta set valid bit */
+	u8 up;
+	u8 type;
+	union {
+	struct rtw_phl_tclas_type0 t0;
+	struct rtw_phl_tclas_type1 t1;
+	struct rtw_phl_tclas_type2 t2;
+	struct rtw_phl_tclas_type3 t3;
+	struct rtw_phl_tclas_type4 t4;
+	struct rtw_phl_tclas_type5 t5;
+	struct rtw_phl_tclas_type6 t6;
+	struct rtw_phl_tclas_type7 t7;
+	struct rtw_phl_tclas_type8 t8;
+	struct rtw_phl_tclas_type9 t9;
+	struct rtw_phl_tclas_type10 t10;
+	}u;
+};
+
+#define QOS_CHAR_MAX_MSDU_SZ_PRESN BIT0 /* Maximum MSDU Size */
+#define QOS_CHAR_SER_ST_PRESN BIT1 /* Service Start Time */
+#define QOS_CHAR_SER_ST_LNKID_PRESN BIT2 /* Service Start Time LinkID */
+#define QOS_CHAR_MEAN_DATA_RATE_PRESN BIT3 /* Mean Data Rate */
+#define QOS_CHAR_BURST_SZ_PRESN BIT4 /* Burst Size */
+#define QOS_CHAR_MSDU_LIFE_T_PRESN BIT5 /* MSDU Lifetime */
+#define QOS_CHAR_DELIVERY_RATIO_PRESN BIT6 /* MSDU Delivery Ratio */
+#define QOS_CHAR_CNT_EXP_PRESN BIT7 /* MSDU Count Exponent */
+#define QOS_CHAR_MED_T_PRESN BIT8 /* Medium Time */
+
+struct rtw_phl_qos_ele {
+	u8 valid;
+	/* +++Control Info+++ */
+	u32 direction : 2;
+	u32 tid : 4;
+	u32 up : 3;
+	u32 presence_bitmap : 16;
+	u32 link_id : 4;
+	u32 reserved : 3;
+	/* ---Control Info--- */
+	u32 min_service_interval;
+	u32 max_service_interval;
+	u32 min_datarate : 24;
+	u32 delay_bound : 24;
+	/* option */
+	u16 max_msdu_size;
+	u32 service_start_time;
+	u8 serv_st_lnkid; /* service_start_time_link_id */
+	u32 mean_datarate : 24;
+	u32 burst_size;
+	u16 msdu_lifetime;
+	u8 msdu_delivery_ratio;
+	u8 msdu_count_exponet;
+	u16 medium_time;
+};
+
+
+struct rtw_phl_scs_info {
+	u8 scsid;
+	u8 req_type; /* enum rtw_phl_scs_req_tp */
+	/* Intra-Access Category Priority Element */
+	u8 iac_valid;
+	struct rtw_phl_intra_ac_priority iacp;
+	/* TCLAS Elements */
+	struct rtw_phl_tclas_element tclas[MAX_TCLAS_ELE];
+	/* TCLAS Processing Element */
+	u8 processing;
+	/* QoS Characteristics Element*/
+	struct rtw_phl_qos_ele qos_ele;
+};
+
+struct rtw_phl_temp_scs_status {
+	u8 scsid;
+	u8 status;
+	u8 req_type;
+};
+
+enum rtw_phl_wfa_cap {
+	QOSMG_DSCP_POL = BIT0, /* QoS Management DSCP Policy */
+	QOSMG_USOL_DSCP_POL_ASSOC = BIT1, /* QoS Management Unsolicited DSCP Policy At Association */
+	QOSMG_NONEHT_SCS_TFC_DESC = BIT2 /* Non-EHT SCS Traffic Description Support  */
+};
+
+#define MAX_SCS_LIST_NUM MAX_SCS_DESCRIPTOR
+struct rtw_phl_scs_sts_duple {
+	u8 scsid;
+	u16 sts;
+};
+
+struct rtw_phl_scs_rsp_f {
+	u8 dt;
+	u8 cnt;
+	struct rtw_phl_scs_sts_duple sts_list[MAX_SCS_LIST_NUM];
+};
+
+/* Wi-Fi Alliance Capabilities element */
+#define MAX_WFA_CAP 1
+struct rtw_phl_wfa_cap_ele {
+	u8 cap[MAX_WFA_CAP]; /* enum rtw_phl_wfa_cap */
+};
+
+/* QosMAP */
+#define MAX_DSCP_EXC_NUM 21
+#define DSCP_RNG_NUM 8
+
+struct rtw_phl_dscp_exc {
+	u8 dscp;
+	u8 up; /* user priority */
+};
+struct rtw_phl_dscp_rng {
+	u8 dscp_l; /* DSCP Low Value */
+	u8 dscp_h; /* DSCP High Value */
+};
+
+struct rtw_phl_qos_map_ele {
+	u8 exc_num;
+	struct rtw_phl_dscp_exc dscp_exc[MAX_DSCP_EXC_NUM];
+	struct rtw_phl_dscp_rng dscp_rng[DSCP_RNG_NUM];
+};
+
+/* MSCS */
+#define MAX_TCLAS_MASK_NUM 4
+#define MIN_MSCS_DESC_LEN 10
+struct rtw_phl_mscs_up_ctrl {
+	u8 up_bitmap; /* User Priority Bitmap */
+	u8 up_lim:3; /* User Priority Limit */
+	u8 rsvd:5;
+};
+
+struct rtw_phl_tclas_mask {
+	struct rtw_phl_tclas_clf clf;
+};
+
+struct rtw_phl_mscs_desc {
+	enum rtw_phl_scs_req_tp req_tp; /**/
+	struct rtw_phl_mscs_up_ctrl up_ctrl;
+	u32 stm_timeout; /* stream timeout */
+	u8 tclas_mask_num;
+	struct rtw_phl_tclas_mask tclas_mask[MAX_TCLAS_MASK_NUM];
+	/* optional subelements */
+	u8 mscs_sts_valide;
+	u16 mscs_sts; /* Status codes */
+};
+
+struct rtw_phl_mscs_rsp {
+	u8 dt; /* Dialog Token */
+	u16 sts; /* Status codes */
+	u8 desc_valide;
+	struct rtw_phl_mscs_desc desc;
+};
+
+/* DSCP Policy Start */
+enum rtw_phl_dscp_pol_attr_req_tp {
+	DSCP_POL_REQ_ADD = 0,
+	DSCP_POL_REQ_UPDATE = 0,
+	DSCP_POL_REQ_REMOVE = 1
+};
+
+struct rtw_phl_qos_mg_ele {
+	/* port range attribute */
+	u8 port_attr_valid;
+	u16 start_port;
+	u16 end_port;
+	/* DSCP Policy attribute */
+	u8 dscp_attr_valid;
+	u8 dscp_pol_id; /* DSCP Policy ID */
+	enum rtw_phl_dscp_pol_attr_req_tp req_tp; /* Request Type */
+	u8 dscp;
+	/* TCLAS attribute */
+	u8 tclas_attr_valid;
+	struct rtw_phl_tclas_clf clf;
+	/* Domain Name attribute */
+	u8 dom_attr_valid;
+	u8 dom_len;
+	u8 dom_name[MAX_DOM_NAME_LEN]; /*domain name*/
+};
+
+struct rtw_phl_dscp_req_ctrl {
+	u8 more:1;
+	u8 reset:1;
+	u8 rsvd:6;
+};
+
+struct rtw_phl_dscp_rsp_ctrl {
+	u8 more:1;
+	u8 reset:1;
+	u8 rsvd:6;
+};
+
+/* DSCP Policy Query frame */
+struct rtw_phl_dscp_pol_qur {
+	u8 dt; /* Dialog Token */
+	u8 qm_ele_num;
+	struct rtw_phl_qos_mg_ele qm_ele[MAX_QOS_MG_ELE_NUM];
+};
+
+/* DSCP Policy Req frame */
+struct rtw_phl_dscp_pol_req {
+	u8 dt; /* Dialog Token */
+	struct rtw_phl_dscp_req_ctrl ctrl; /* request control field */
+	u8 qm_ele_num;
+	struct rtw_phl_qos_mg_ele qm_ele[MAX_QOS_MG_ELE_NUM];
+};
+
+enum dscp_pol_sts {
+	DSCP_POL_SUCCESS = 0,
+	DSCP_POL_REQUEST_DECLINED = 1,
+	DSCP_POL_REQUESTED_CLASSIFIER_NOT_SUPPORTED = 2,
+	DSCP_POL_INSUFFICIENT_PROCESSING_RESOURCES = 3,
+	DSCP_POL_STS_RSVD
+};
+
+struct rtw_phl_dcsp_sts {
+	u8 id; /* dscp policy id */
+	enum dscp_pol_sts sts;
+};
+
+/* DSCP Policy Rsp frame */
+struct rtw_phl_dscp_pol_rsp {
+	u8 dt; /* Dialog Token */
+	struct rtw_phl_dscp_rsp_ctrl ctrl; /* response control field */
+	u8 cnt;
+	struct rtw_phl_dcsp_sts sts[MAX_QOS_MG_ELE_NUM];
+};
+
+/* DSCP Policy End */
+
+#ifdef CONFIG_DRV_HDL_QM_POL
+
+enum rule_type {
+	QM_RULE_DSCP_POL = 1
+};
+
+struct qm_rule_i {
+	u8 rank;
+	enum rule_type tp;
+	union {
+		struct rtw_phl_qos_mg_ele qm_ele;
+	} info;
+
+};
+
+#define MAX_QM_RULE_ROLE 2
+#define MAX_QM_RULE 5
+
+struct qm_ruleset {
+	struct rtw_wifi_role_t *wr;
+	struct qm_rule_i rule[MAX_QM_RULE];
+};
+#endif /* CONFIG_DRV_HDL_QM_POL */
+
+struct qm_ctrl_info {
+	u8 rsvd;
+#ifdef CONFIG_DRV_HDL_QM_POL
+	_os_lock lock;
+	struct qm_ruleset ruleset[MAX_QM_RULE_ROLE];
+#endif /* CONFIG_DRV_HDL_QM_POL */
+};
+
+#endif /* CONFIG_QOS_MG */
+
+#define HT_RX_REORDER_BUF_TIMEOUT_SHORT_MS 50
+#define HT_RX_REORDER_BUF_TIMEOUT_MS 500
+
 struct rtw_hal_stainfo_t;
 struct rtw_phl_stainfo_t {
 	_os_list list;
@@ -2626,6 +3437,7 @@ struct rtw_phl_stainfo_t {
 	u8 tid_dl_map;         /* bitmask */
 
 	struct rtw_chan_def chandef;
+	enum channel_width tx_bw_mode;
 	struct rtw_stats stats;
 	enum wlan_mode wmode;
 
@@ -2635,8 +3447,6 @@ struct rtw_phl_stainfo_t {
 	u8 tf_trs;
 	u8 tgt_ind;
 	u8 frm_tgt_ind;
-	u8 addr_sel;
-	u8 addr_msk;
 
 	/* rx agg */
 	struct phl_tid_ampdu_rx *tid_rx[RTW_MAX_TID_NUM]; /* TID_MAX_NUM */
@@ -2644,6 +3454,7 @@ struct rtw_phl_stainfo_t {
 	_os_event comp_sync;     /* reorder timer completion event */
 	_os_timer reorder_timer; /* reorder timer for all @tid_rx of the
 	                          * stainfo */
+	u16 reorder_timeout; /* reorder timeout value of all @tid_rx */
 	/* TODO: add missing part */
 
 	/*mlme protocol or PHY related CAP*/
@@ -2680,10 +3491,22 @@ struct rtw_phl_stainfo_t {
 	u8 l2recover_assoc_rssi_bk;
 	struct protocol_cap_t l2recover_asoc_cap_bk;
 #endif
+
+#ifdef CONFIG_QOS_MG
+	struct rtw_phl_scs_info scs_info[MAX_SCS_DESCRIPTOR];
+	struct rtw_phl_temp_scs_status scs_temp[MAX_TEMP_SCS_STATUS];
+#endif /* CONFIG_QOS_MG */
+
+#ifdef CONFIG_DIG_TDMA
+	enum rtw_p2p_app_type p2p_session;
+#endif
+	bool flag_pwr_diff_large;
+	u8 ref_mac[MAC_ALEN];
+	bool is_nontx;
 };
 
-
-
+#define PHL_USE_RA_BW_MODE
+#define PHL_STA_TX_BW_MODE(sta) (((sta)->tx_bw_mode == CHANNEL_WIDTH_MAX) ? (sta)->chandef.bw : (sta)->tx_bw_mode)
 
 #define WL_FUNC_P2P		BIT0
 #define WL_FUNC_MIRACAST	BIT1
@@ -2763,7 +3586,6 @@ struct hal_spec_t {
 
 	u8 port_num;
 	u8 wmm_num;
-	u8 proto_cap;	/* value of PROTO_CAP_XXX */
 	u8 wl_func;	/* value of WL_FUNC_XXX */
 
 	/********* xmit ************/
@@ -2811,6 +3633,7 @@ enum rtw_drv_mode {
 	RTW_DRV_MODE_EQC = 1,
 	RTW_DRV_MODE_HIGH_THERMAL = 2,
 	RTW_DRV_MODE_SNIFFER = 3,
+	RTW_DRV_MODE_LOGO_TEST = 4,
 
 	/* 11~20 for MP submodule section*/
 	RTW_DRV_MODE_MP_SMDL_START = 11,
@@ -2842,11 +3665,13 @@ struct rtw_evt_info_t {
 	enum rtw_phl_evt evt_bitmap;
 };
 
+#ifdef CONFIG_PHL_CHSWOFLD
 struct chsw_ofld_info_t {
 	u8 chsw_ofld_en;
 	u8 rf_reload;
 	u8 skip_normal_watchdog;
 };
+#endif
 
 // WiFi FW
 struct rtw_fw_info_t {
@@ -2870,6 +3695,7 @@ struct rtw_fw_info_t {
 	u32 sym_buf_size;
 };
 
+#ifndef CONFIG_CORE_DBG_NONE
 enum rtw_fw_status {
 	RTW_FW_STATUS_OK,
 	RTW_FW_STATUS_NOFW,
@@ -2878,6 +3704,7 @@ enum rtw_fw_status {
 	RTW_FW_STATUS_RXI300,
 	RTW_FW_STATUS_HANG
 };
+#endif
 
 #ifdef CONFIG_PHL_DFS
 enum dfs_regd_t {
@@ -3263,6 +4090,7 @@ struct mr_info {
 	u8 monitor_num;
 
 	u8 p2p_device_num;
+	bool lsn_discov;
 	u8 p2p_gc_num;
 	u8 p2p_go_num;
 
@@ -3369,6 +4197,9 @@ struct rtw_phl_noa {
 struct dbcc_proto_msg {
 	struct rtw_wifi_role_t *wr;
 	bool dbcc_en;
+	#ifdef CONFIG_DBCC_P2P_BG_LISTEN
+	bool dbcc_cmd_direct;
+	#endif
 };
 #endif
 
@@ -3453,6 +4284,8 @@ struct rtw_phl_rssi_stat {
 	u8 ma_rssi_ele[RTW_RSSI_TYPE_MAX][PHL_RSSI_MAVG_NUM]; /* rssi element for moving average */
 	u32 ma_rssi_ele_sum[RTW_RSSI_TYPE_MAX];
 	u8 ma_rssi[RTW_RSSI_TYPE_MAX]; /* moving average : 0~PHL_MAX_RSSI (dBm = rssi - PHL_MAX_RSSI) */
+	u32 last_rx_freerun;
+	u32 last_switch_rx_freerun;
 };
 
 #define PHL_MAX_PPDU_CNT 8
@@ -3722,6 +4555,10 @@ struct rtw_phl_ppdu_sts_ent {
 	u8 ppdu_type;
 	u16 rx_rate;
 	u8 src_mac_addr[MAC_ADDRESS_LENGTH];
+	u32 pkt_freerun_cnt;
+#ifdef CONFIG_PHL_CHANNEL_INFO
+	bool bypass_csi;
+#endif
 
 	/* from ppdu status */
 	bool valid;
@@ -3854,6 +4691,90 @@ struct phl_tx_stats {
 };
 #endif /* DEBUG_PHL_TX */
 
+#ifdef CONFIG_SMART_ANTENNA
+struct rtw_phl_smart_ant_info_t{
+	u16 tx_rate;
+	u16 rx_rate;
+	u16 pkt_cnt_cck;
+	u16 pkt_cnt_ofdm;
+	u16 pkt_cnt_1ss;
+	u16 pkt_cnt_2ss;
+	u8 rssi_cck_avg[2];
+	u8 rssi_ofdm_avg[2];
+	u8 rssi_1ss_avg[2];
+	u8 rssi_2ss_avg[2];
+	bool ht_pkt_not_zero;
+	bool low_bw_20_occur;
+	bool vht_pkt_not_zero;
+	bool low_bw_40_occur;
+	bool he_pkt_not_zero;
+	bool low_bw_80_occur;
+	u16 num_qry_legacy_pkt[12];
+	u16 num_qry_ht_pkt[16];
+	u16 num_qry_pkt_sc_20m[24];
+	u16 num_qry_vht_pkt[24];
+	u16 num_qry_pkt_sc_40m[24];
+	u16 num_qry_he_pkt[24];
+	u16 num_qry_pkt_sc_80m[24];
+	u8 evm_1ss; /*1ss rate*/
+	u8 evm_max; /*2ss rate*/
+	u8 evm_min; /*2ss rate*/
+	u8 snr_avg;
+	u8 tx_per;
+	u16 rx_per;
+	s8 edcca;
+	u8 nhm_pwr;
+	struct acs_mntr_rpt acs_rpt[MAX_ACS_INFO];
+};
+#endif
+
+#ifdef DBG_MONITOR_TIME
+enum phl_time_flags {
+	TIME_PHL_INIT, /*rtw_phl_init,*/
+	TIME_PHL_PRELOAD, /*rtw_phl_preload,*/
+	TIME_HAL_FAST_START,  /*hal_fast_start*/
+	TIME_HAL_GET_EFUSE, /*hal_get_efuse*/
+	TIME_HAL_FAST_STOP, /*hal_fast_stop*/
+
+	TIME_PHL_START, /*rtw_phl_start*/
+	TIME_HAL_START, /*rtw_hal_start*/
+
+	TIME_HAL_MAC_HAL_INIT,   /*rtw_hal_mac_hal_init*/
+	TIME_HAL_EFUSE_PROC,   /*rtw_hal_efuse_process*/
+	TIME_HAL_INIT_BB_REG1,   /*rtw_hal_init_bb_early_init*/
+	TIME_HAL_INIT_BB_REG2,   /*rtw_hal_init_bb_reg*/
+	TIME_HAL_INIT_RF_REG,   /*rtw_hal_init_rf_reg*/
+
+	TIME_HAL_INIT_BTC,   /*rtw_hal_btc_init_coex_cfg_ntfy*/
+
+	TIME_HAL_BB_DM_INIT, /*rtw_hal_bb_dm_init*/
+	TIME_HAL_RF_DM_INIT, /*rtw_hal_rf_dm_init*/
+
+	/*TIME_PHL_SET_CHAN,*/ /*phl_set_ch_bw_ex*/
+	TIME_HAL_SET_CHAN, /*rtw_hal_set_ch_bw*/
+	TIME_HAL_RFK, /*rtw_hal_rf_chl_rfk_trigger*/
+
+	TIME_PHL_SUSPEND, /*rtw_phl_suspend*/
+	TIME_PHL_RESUME,  /*rtw_phl_resume*/
+	TIME_PHL_WOW_START,   /*phl_wow_start*/
+	TIME_PHL_WOW_STOP, /*phl_wow_stop*/
+
+	TIME_PHL_ROLE_SUSPEND, /*phl_cmd_role_suspend*/
+	TIME_PHL_ROLE_RECOVER, /*phl_cmd_role_recover*/
+
+	TIME_PHL_ROLE_ALLOC, /*rtw_phl_wifi_role_alloc*/
+	TIME_PHL_ROLE_FREE, /*rtw_phl_wifi_role_free*/
+
+	TIME_PHL_STOP, /*rtw_phl_stop,*/
+
+	TIME_PHL_DEINIT, /*rtw_phl_deinit,*/
+
+	/*keep last*/
+	TIME_PHL_MAX
+};
+#define PHL_TIME_FLAGS_SZ (TIME_PHL_MAX + 1)
+#endif
+
 struct rtw_phl_evt_ops;
 struct rtw_phl_com_t {
 	struct rtw_wifi_role_t wifi_roles[MAX_WIFI_ROLE_NUMBER];
@@ -3874,7 +4795,7 @@ struct rtw_phl_com_t {
 	struct dev_cap_t dev_cap; /* final capability of device (intersection of sw/hw) */
 
 	struct bus_sw_cap_t bus_sw_cap; /* SW controlled bus capability */
-
+	struct rtw_phl_dbg_cfg_t dbg_cfg; /* SW control debug flow */
 	struct rtw_fw_info_t fw_info;
 	struct rtw_evt_info_t evt_info;
 	struct rtw_stats phl_stats;
@@ -3887,7 +4808,9 @@ struct rtw_phl_com_t {
 	bool append_fcs;
 	bool accept_icv_err;
 
+#ifdef CONFIG_PHL_CHSWOFLD
 	struct chsw_ofld_info_t chsw_ofld_info;
+#endif
 
 	/* Flags to control/check DecryptCustomFile */
 	bool decrypt_cf;
@@ -3896,10 +4819,13 @@ struct rtw_phl_com_t {
 	u8 rf_path_num; /*GET_HAL_RFPATH_NUM*/
 	u8 regulation;  /*regulation*/
 	u8 edcca_mode;
+	bool rsp_static_rts_chk_off;
 
 	struct rtw_tpe_info_t tpe_info; /* Transmit Power Envelope Information */
 #ifdef CONFIG_PHL_CHANNEL_INFO
+	#ifndef CONFIG_PHL_CHANNEL_INFO_DIRECT_INDICATE
 	struct rx_chan_info_pool *chan_info_pool;
+	#endif
 	struct chan_info_t *chan_info; /* Handle channel info packet */
 	struct rtw_chinfo_cur_parm *cur_parm;
 #endif /* CONFIG_PHL_CHANNEL_INFO */
@@ -3930,28 +4856,14 @@ struct rtw_phl_com_t {
 #ifdef DEBUG_PHL_TX
 	struct phl_tx_stats tx_stats;
 #endif
-#ifdef DBG_DUMP_TX_COUNTER
-	bool dbg_dump_tx;
-	u8 dbg_dump_tx_bidx;
+
+#ifdef CONFIG_SMART_ANTENNA
+	struct rtw_phl_smart_ant_info_t ant_info;
 #endif
 
-#ifdef CONFIG_PHL_DUMP_TRX_STATUS
-	/*dbg_mac_cfg
-	 *BIT0:ss_dbg
-	 *BIT1:dle_dbg
-	 *BIT2:dmac_dbg
-	 *BIT3:cmac_dbg
-	 *BIT4:mac_dbg_port
-	 *BIT5:plersvd_dbg
-	 *BIT6:tx_flow_dbg
-	 *other:
-	 *BIT7:check rx interrupt
-	 */
-	u32 dbg_ss_dbg_0;
-	u32 dbg_ss_dbg_1;
-	u16 dbg_mac_cfg;
-	u8 check_rx_int;
-#endif /*CONFIG_PHL_DUMP_TRX_STATUS*/
+#ifdef DBG_MONITOR_TIME
+	u32 func_latency[PHL_TIME_FLAGS_SZ];
+#endif
 };
 
 struct phl_sec_param_h {
@@ -4082,7 +4994,6 @@ enum pkt_ofld_type {
 	PKT_OFLD_TYPE_MAX,
 };
 
-#ifdef CONFIG_PHL_SCANOFLD
 struct scan_ofld_ch_info {
 	enum band_type band;
 	u8 center_chan;
@@ -4140,8 +5051,6 @@ struct scan_ofld_info {
 	bool tgt_mode;
 	struct rtw_chan_def tgt_chandef;
 };
-#endif
-
 
 #define MP_MAC_AX_MAX_RU_NUM	4
 
@@ -4467,6 +5376,14 @@ struct rtw_pcie_trx_mit_info_t {
 	void *priv;
 };
 
+#ifdef CONFIG_POST_CORE_KEEP_ALIVE
+struct rtw_keep_alive_param {
+	u8 sta_chk_rx_bmp;
+	u8 sta_chk_tx_bmp;
+	u32 ap_chk_sta_bmp[MAX_WIFI_ROLE_NUMBER];
+};
+#endif
+
 struct rtw_env_report {
 	bool rpt_status; /*1 means CCX_SUCCESS,0 means fail*/
 	u8 clm_ratio;
@@ -4485,10 +5402,12 @@ struct rtw_tx_pkt_rpt {
 	u8 seq_no;
 };
 
+#ifdef CONFIG_PHL_BCN_ERLY_RPT
 struct rtw_bcn_early_rpt {
-	u8 band;
-	u8 port;
+	u8 band; /* band idx 0~1 */
+	u8 port; /* port idx 0~4 */
 };
+#endif
 
 #ifdef CONFIG_PHL_DFS_SWITCH_CH_WITH_CSA
 struct rtw_csa_cntdown_rpt {
@@ -4584,5 +5503,14 @@ struct rtw_phl_hw_cts2self_cfg {
 	u8 sec_threshold;
 };
 
+#ifdef CONFIG_CMD_DISP
+struct wr_chg_param {
+	struct rtw_wifi_role_t *wrole;
+	struct rtw_wifi_role_link_t *rlink;
+	enum wr_chg_id id;
+	u8 *info;
+	u8 info_len;
+};
+#endif
 
 #endif /*_PHL_DEF_H_*/

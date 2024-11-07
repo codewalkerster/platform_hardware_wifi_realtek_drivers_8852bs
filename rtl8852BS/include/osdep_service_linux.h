@@ -160,7 +160,7 @@
  * refs/heads/common-android13-5.15-2023-04 (5.15.94)
  * refs/heads/android13-5.15-lts (5.15.106)
  */
-#if (defined(CONFIG_RTW_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41)))
+#if (defined(__ANDROID_COMMON_KERNEL__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 94)))
         #define CONFIG_MLD_KERNEL_PATCH
 #endif
 
@@ -346,6 +346,10 @@ __inline static void _rtw_spinunlock_bh(_lock *plock)
 	spin_unlock_bh(plock);
 }
 
+__inline static int _rtw_spin_is_locked(_lock *plock)
+{
+	return spin_is_locked(plock);
+}
 
 /*lock - semaphore*/
 typedef struct	semaphore _sema;
@@ -533,6 +537,7 @@ static inline void rtw_thread_exit(_completion *comp)
 #endif
 }
 
+#ifdef CONFIG_PHL_CPU_BALANCE_THREAD
 static inline _thread_hdl_ rtw_thread_cpu_start(int (*threadfn)(void *data),
 			void *data, const char namefmt[], u8 cpu_id, u8 en_cpuid)
 {
@@ -551,6 +556,7 @@ static inline _thread_hdl_ rtw_thread_cpu_start(int (*threadfn)(void *data),
 	}
 	return _rtw_thread;
 }
+#endif /*CONFIG_PHL_CPU_BALANCE_THREAD*/
 
 static inline _thread_hdl_ rtw_thread_start(int (*threadfn)(void *data),
 			void *data, const char namefmt[])
@@ -598,6 +604,7 @@ static inline void flush_signals_thread(void)
 #endif
 
 typedef unsigned long systime;
+typedef ktime_t sysptime;
 
 /*tasklet*/
 typedef struct tasklet_struct _tasklet;
@@ -1059,7 +1066,6 @@ static inline void rtw_dump_stack(void)
 	dump_stack();
 }
 #define rtw_bug_on(condition) BUG_ON(condition)
-#define rtw_warn_on(condition) WARN_ON(condition)
 #define RTW_DIV_ROUND_UP(n, d)	DIV_ROUND_UP(n, d)
 #define rtw_sprintf(buf, size, format, arg...) snprintf(buf, size, format, ##arg)
 
@@ -1111,5 +1117,13 @@ static inline void rtw_dump_stack(void)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
 #define dev_addr_mod(dev, offset, addr, len) _rtw_memcpy(&dev->dev_addr[offset], addr, len)
 #endif
+
+#define rtw_warn_on(condition) \
+	do { \
+		if (condition) { \
+			WARN_ON(1); \
+			ATOMIC_INC((ATOMIC_T *)&rtw_warn_on_cnt); \
+		} \
+	} while (0)
 
 #endif /* __OSDEP_LINUX_SERVICE_H_ */

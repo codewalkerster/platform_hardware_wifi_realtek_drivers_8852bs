@@ -68,6 +68,8 @@ static inline char*_os_strchr(const char *s, int c)
 #if 1
 #define _os_snprintf(s, sz, fmt, ...) snprintf(s, sz, fmt, ##__VA_ARGS__)
 #define _os_vsnprintf(str, size, fmt, args) vsnprintf(str, size, fmt, args)
+#define _os_va_start(args, fmt) va_start(args, fmt)
+#define _os_va_end(args) va_end(args)
 #else
 static int _os_snprintf(char *str, size_t size, const char *fmt, ...)
 {
@@ -110,6 +112,11 @@ static inline u32 _os_get_cur_time_us(void)
 static inline u32 _os_get_cur_time_ms(void)
 {
 	return rtw_systime_to_ms(rtw_get_current_time());
+}
+
+static inline _os_raw_time _os_get_cur_raw_time(void)
+{
+	return rtw_sptime_get_raw();
 }
 
 static inline u64 _os_modular64(u64 x, u64 y)
@@ -731,11 +738,7 @@ static __inline u8 _os_thread_init(	void *drv_priv, _os_thread *thread,
 					const char namefmt[])
 {
 	RST_THREAD_STATUS(thread);
-#ifdef CONFIG_PHL_CPU_BALANCE_THREAD
-		thread->thread_handler = rtw_thread_cpu_start(call_back_func, context, namefmt, thread->cpu_id, thread->en_assign_cpuid);
-#else
-		thread->thread_handler = rtw_thread_start(call_back_func, context, namefmt);
-#endif /*CONFIG_PHL_CPU_BALANCE_THREAD*/
+	thread->thread_handler = rtw_thread_start(call_back_func, context, namefmt);
 	if (thread->thread_handler) {
 		SET_THREAD_STATUS(thread, THREAD_STATUS_STARTED);
 		return RTW_PHL_STATUS_SUCCESS;
@@ -835,6 +838,27 @@ static inline u8 _os_deinit_handler_ext(void *drv_priv,
 #endif /* CONFIG_RTW_OS_HANDLER_EXT */
 
 /* File Operation */
+
+/*
+* if _os_file_readable() is supported
+*/
+static inline bool _os_file_readable_supported(void)
+{
+	return true;
+}
+
+/*
+* Test if the specific @param path is a file and readable.
+* If readable, @param sz is set to file size
+* @param path the path of the file to test
+* @param sz the file size if file is readable
+* @return true or false
+*/
+static inline bool _os_file_readable(const char *path, u32 *sz)
+{
+	return (bool)rtw_is_file_readable_with_size(path, sz);
+}
+
 static inline u32 _os_read_file(const char *path, u8 *buf, u32 sz)
 {
 	return (u32)rtw_retrieve_from_file(path, buf, sz);
@@ -876,6 +900,48 @@ static inline int _os_write16_pcie(void *d, u32 addr, u16 val)
 static inline int _os_write32_pcie(void *d, u32 addr, u32 val)
 {
 	return os_pci_write32((struct dvobj_priv *)d, addr, val);
+}
+
+static __inline bool _os_get_pci_cfg(void *drv_priv, u32 offset, void *buf, u32 len)
+{
+	struct dvobj_priv *pobj = (struct dvobj_priv *)drv_priv;
+	PPCI_DATA pci_data = dvobj_to_pci(pobj);
+
+	switch(len) {
+	case 1:
+		pci_read_config_byte(pci_data->ppcidev, offset, (u8 *)buf);
+		break;
+	case 2:
+		pci_read_config_word(pci_data->ppcidev, offset, (u16 *)buf);
+		break;
+	case 4:
+		pci_read_config_dword(pci_data->ppcidev, offset, (u32 *)buf);
+		break;
+	default:
+		break;
+	}
+	return true;
+}
+
+static __inline bool _os_set_pci_cfg(void *drv_priv, u32 offset, void *buf, u32 len)
+{
+	struct dvobj_priv *pobj = (struct dvobj_priv *)drv_priv;
+	PPCI_DATA pci_data = dvobj_to_pci(pobj);
+
+	switch(len) {
+	case 1:
+		pci_write_config_byte(pci_data->ppcidev, offset, *(u8 *)buf);
+		break;
+	case 2:
+		pci_write_config_word(pci_data->ppcidev, offset, *(u16 *)buf);
+		break;
+	case 4:
+		pci_write_config_dword(pci_data->ppcidev, offset, *(u32 *)buf);
+		break;
+	default:
+		break;
+	}
+	return true;
 }
 #endif/*#ifdef CONFIG_PCI_HCI*/
 

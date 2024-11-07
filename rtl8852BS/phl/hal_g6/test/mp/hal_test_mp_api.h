@@ -79,6 +79,7 @@ enum rtw_hal_status rtw_hal_mp_config_set_ch_bw(
 enum rtw_hal_status rtw_hal_mp_config_swith_btc_path(
 	struct mp_context *mp, struct mp_config_arg *arg);
 enum rtw_hal_status rtw_hal_mp_trigger_fw_conflict(struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status rtw_hal_mp_config_set_gpio(struct mp_context *mp, struct mp_config_arg *arg);
 enum rtw_hal_status rtw_hal_mp_bb_loop_bck(struct mp_context *mp, struct mp_tx_arg *arg);
 enum rtw_hal_status
 rtw_hal_mp_cfg_tx_by_bt_link(struct mp_context *mp, struct mp_tx_arg *arg);
@@ -90,6 +91,22 @@ void rtw_hal_set_regulation(
 void rtw_hal_set_bt_uart_en(struct mp_context *mp, struct mp_config_arg *arg);
 enum rtw_hal_status rtw_hal_mp_config_switch_antenna(
 	struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status  rtw_hal_set_mac_loopbk_enter(
+	struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status rtw_hal_mp_set_hci_speed(
+	struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status rtw_hal_mp_get_hci_speed(
+	struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status rtw_hal_set_mac_fw_general_io_test(
+	struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status rtw_hal_mp_set_mac_l1ss_enable(
+	struct mp_context *mp, struct mp_config_arg *arg);
+enum rtw_hal_status
+rtw_hal_set_mac_aspm_test(struct mp_context *mp);
+enum rtw_hal_status rtw_hal_mp_get_max_hci_speed(struct mp_context *mp,
+						 struct mp_config_arg *arg);
+enum rtw_hal_status rtw_hal_mp_enable_bb_rf(struct mp_context *mp,
+					    struct mp_config_arg *arg);
 /* WIFI EFUSE */
 enum rtw_hal_status rtw_hal_mp_efuse_wifi_shadow_read(
 	struct mp_context *mp, struct mp_efuse_arg *arg);
@@ -205,6 +222,8 @@ enum rtw_hal_status rtw_hal_mp_rx_get_rxevm(
 enum rtw_hal_status rtw_hal_mp_rx_trigger_rxevm(
 	struct mp_context *mp, struct mp_rx_arg *arg);
 enum rtw_hal_status rtw_hal_mp_rx_set_gain_offset(
+	struct mp_context *mp, struct mp_rx_arg *arg);
+enum rtw_hal_status rtw_hal_mp_rx_set_rx_fltr(
 	struct mp_context *mp, struct mp_rx_arg *arg);
 enum rtw_hal_status rtw_hal_mp_tx_plcp_gen(
 	struct mp_context *mp, struct mp_tx_arg *arg);

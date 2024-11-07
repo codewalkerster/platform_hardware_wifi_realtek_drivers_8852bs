@@ -36,69 +36,57 @@
 
 #define MAC_AX_BTGS1_NOTIFY BIT(0)
 
-u32 coex_mac_init_8852b(struct mac_ax_adapter *adapter)
-{
-	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
-	u32 ret = mac_write_lte_8852b(adapter, R_AX_LTECOEX_CTRL, 0);
-	u8 val = MAC_REG_R8(R_AX_SYS_SDIO_CTRL + 3);
-
-	if (ret != MACSUCCESS) {
-		PLTFM_MSG_ERR("Write LTE REG fail\n");
-		return ret;
-	}
-
-	ret = mac_write_lte_8852b(adapter, R_AX_LTECOEX_CTRL_2, 0);
-	if (ret != MACSUCCESS) {
-		PLTFM_MSG_ERR("Write LTE REG fail\n");
-		return ret;
-	}
-
-	MAC_REG_W8(R_AX_SYS_SDIO_CTRL + 3, val | BIT(2));
-
-	return MACSUCCESS;
-}
-
 u32 mac_write_lte_8852b(struct mac_ax_adapter *adapter,
 			const u32 offset, u32 val)
 {
 	u32 cnt;
 	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
+#if MAC_USB_IO_ACC_ON
+	struct mac_ax_ops *mac_ops = adapter_to_mac_ops(adapter);
+	u32 ret, ofldcap = 0;
 
-#if MAC_AX_FW_REG_OFLD
-	u32 ret;
-
-	if (adapter->sm.fwdl != MAC_AX_FWDL_INIT_RDY) {
-		cnt = 1000;
-		while ((MAC_REG_R8(R_AX_LTE_CTRL + 3) & BIT(5)) == 0) {
-			if (cnt == 0) {
-				PLTFM_MSG_ERR("[ERR]lte not ready(W)\n");
-				return MACPOLLTO;
-			}
-			cnt--;
-			PLTFM_DELAY_US(50);
+	if (adapter->sm.fwdl == MAC_AX_FWDL_INIT_RDY) {
+		ret = mac_ops->get_hw_value(adapter, MAC_AX_HW_GET_FW_CAP, &ofldcap);
+		if (ret != MACSUCCESS) {
+			PLTFM_MSG_ERR("Get MAC_AX_HW_GET_FW_CAP fail %d\n", ret);
+			return ret;
 		}
+		if (ofldcap) {
+			ret = MAC_REG_P_OFLD(R_AX_LTE_CTRL, B_AX_LTE_RDY, 1, 0);
+			if (ret != MACSUCCESS)
+				return ret;
 
-		PLTFM_MUTEX_LOCK(&adapter->hw_info->lte_rlock);
+			ret = MAC_REG_W32_OFLD(R_AX_LTE_WDATA, val, 0);
+			if (ret != MACSUCCESS)
+				return ret;
 
-		MAC_REG_W32(R_AX_LTE_WDATA, val);
-		MAC_REG_W32(R_AX_LTE_CTRL, 0xC00F0000 | offset);
+			ret = MAC_REG_W32_OFLD(R_AX_LTE_CTRL, 0xC00F0000 | offset, 1);
+			if (ret != MACSUCCESS)
+				return ret;
 
-		PLTFM_MUTEX_UNLOCK(&adapter->hw_info->lte_rlock);
+			return MACSUCCESS;
+		} else {
+			cnt = 1000;
+			while ((MAC_REG_R8(R_AX_LTE_CTRL + 3) & BIT(5)) == 0) {
+				if (cnt == 0) {
+					PLTFM_MSG_ERR("[ERR]lte not ready(W)\n");
+					return MACPOLLTO;
+				}
+				cnt--;
+				PLTFM_DELAY_US(50);
+			}
 
-	} else {
-		ret = MAC_REG_P_OFLD(R_AX_LTE_CTRL, B_AX_LTE_RDY, 1, 0);
-		if (ret != MACSUCCESS)
-			return ret;
+			PLTFM_MUTEX_LOCK(&adapter->lock_info.lte_rlock);
 
-		ret = MAC_REG_W32_OFLD(R_AX_LTE_WDATA, val, 0);
-		if (ret != MACSUCCESS)
-			return ret;
+			MAC_REG_W32(R_AX_LTE_WDATA, val);
+			MAC_REG_W32(R_AX_LTE_CTRL, 0xC00F0000 | offset);
 
-		ret = MAC_REG_W32_OFLD(R_AX_LTE_WDATA, 0xC00F0000 | offset, 1);
-		if (ret != MACSUCCESS)
-			return ret;
+			PLTFM_MUTEX_UNLOCK(&adapter->lock_info.lte_rlock);
+
+			return MACSUCCESS;
+		}
 	}
-#else
+#endif
 	cnt = 1000;
 	while ((MAC_REG_R8(R_AX_LTE_CTRL + 3) & BIT(5)) == 0) {
 		if (cnt == 0) {
@@ -109,16 +97,17 @@ u32 mac_write_lte_8852b(struct mac_ax_adapter *adapter,
 		PLTFM_DELAY_US(50);
 	}
 
-	PLTFM_MUTEX_LOCK(&adapter->hw_info->lte_rlock);
+	PLTFM_MUTEX_LOCK(&adapter->lock_info.lte_rlock);
 
 	MAC_REG_W32(R_AX_LTE_WDATA, val);
 	MAC_REG_W32(R_AX_LTE_CTRL, 0xC00F0000 | offset);
 
-	PLTFM_MUTEX_UNLOCK(&adapter->hw_info->lte_rlock);
-#endif
+	PLTFM_MUTEX_UNLOCK(&adapter->lock_info.lte_rlock);
+
 	return MACSUCCESS;
 }
 
+#if MAC_FEAT_COEX
 u32 mac_read_lte_8852b(struct mac_ax_adapter *adapter,
 		       const u32 offset, u32 *val)
 {
@@ -135,12 +124,12 @@ u32 mac_read_lte_8852b(struct mac_ax_adapter *adapter,
 		PLTFM_DELAY_US(50);
 	}
 
-	PLTFM_MUTEX_LOCK(&adapter->hw_info->lte_rlock);
+	PLTFM_MUTEX_LOCK(&adapter->lock_info.lte_rlock);
 
 	MAC_REG_W32(R_AX_LTE_CTRL, 0x800F0000 | offset);
 	*val = MAC_REG_R32(R_AX_LTE_RDATA);
 
-	PLTFM_MUTEX_UNLOCK(&adapter->hw_info->lte_rlock);
+	PLTFM_MUTEX_UNLOCK(&adapter->lock_info.lte_rlock);
 
 	return MACSUCCESS;
 }
@@ -396,4 +385,29 @@ u32 mac_get_ctrl_path_8852b(struct mac_ax_adapter *adapter, u32 *wl)
 	return MACSUCCESS;
 }
 
+#else
+
+u32 coex_mac_init_8852b(struct mac_ax_adapter *adapter)
+{
+	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
+	u32 ret = mac_write_lte_8852b(adapter, R_AX_LTECOEX_CTRL, 0);
+	u8 val = MAC_REG_R8(R_AX_SYS_SDIO_CTRL + 3);
+
+	if (ret != MACSUCCESS) {
+		PLTFM_MSG_ERR("Write LTE REG fail\n");
+		return ret;
+	}
+
+	ret = mac_write_lte_8852b(adapter, R_AX_LTECOEX_CTRL_2, 0);
+	if (ret != MACSUCCESS) {
+		PLTFM_MSG_ERR("Write LTE REG fail\n");
+		return ret;
+	}
+
+	MAC_REG_W8(R_AX_SYS_SDIO_CTRL + 3, val | BIT(2));
+
+	return MACSUCCESS;
+}
+
+#endif /* MAC_FEAT_COEX */
 #endif /* #if MAC_AX_8852B_SUPPORT */

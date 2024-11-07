@@ -23,10 +23,11 @@ static void restore_flr_lps(struct mac_ax_adapter *adapter)
 
 	MAC_REG_W32(R_AX_WCPU_FW_CTRL, 0);
 
-#if MAC_AX_8852A_SUPPORT || MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT
+#if MAC_AX_8852A_SUPPORT || MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8852BT_SUPPORT
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		MAC_REG_W32(R_AX_AFE_CTRL1, MAC_REG_R32(R_AX_AFE_CTRL1) &
 			    ~B_AX_CMAC_CLK_SEL);
 
@@ -36,11 +37,10 @@ static void restore_flr_lps(struct mac_ax_adapter *adapter)
 	}
 #endif
 
-#if (MAC_AX_8852C_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8851E_SUPPORT || \
-MAC_AX_8852D_SUPPORT || MAC_AX_1115E_SUPPORT)
+#if (MAC_AX_8852C_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852D_SUPPORT || \
+MAC_AX_1115E_SUPPORT)
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852C) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851E) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852D) ||
 	    is_chip_id(adapter, MAC_BE_CHIP_ID_1115E)) {
 		val32 = MAC_REG_R32(R_AX_GPIO0_15_EECS_EESK_LED1_PULL_LOW_EN);
@@ -56,7 +56,7 @@ static void clr_aon_int(struct mac_ax_adapter *adapter)
 	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
 	u32 val32;
 
-	if (adapter->hw_info->intf != MAC_AX_INTF_PCIE)
+	if (adapter->env_info.intf != MAC_AX_INTF_PCIE)
 		return;
 
 	val32 = MAC_REG_R32(R_AX_FWS0IMR);
@@ -252,7 +252,7 @@ u32 pwr_seq_start(struct mac_ax_adapter *adapter,
 		break;
 	}
 
-	switch (hw_info->intf) {
+	switch (adapter->env_info.intf) {
 	case MAC_AX_INTF_SDIO:
 		intf = PWR_INTF_MSK_SDIO;
 		break;
@@ -309,6 +309,8 @@ u32 mac_pwr_switch(struct mac_ax_adapter *adapter, u8 on)
 		MAC_REG_W32(R_AX_RSV_CTRL, val32);
 	}
 
+	mac_pwr_sps_ana_setting(adapter);
+
 	val32 = MAC_REG_R32(R_AX_IC_PWR_STATE);
 	val32 = GET_FIELD(val32, B_AX_WLMAC_PWR_STE);
 	if (val32 == MAC_AX_MAC_OFF && on == MAC_AX_MAC_OFF) {
@@ -323,10 +325,10 @@ u32 mac_pwr_switch(struct mac_ax_adapter *adapter, u8 on)
 	}
 
 	if (on) {
-		pwr_seq = adapter->hw_info->pwr_on_seq;
+		pwr_seq = adapter->mac_pwr_info.pwr_on_seq;
 		pwr_func = p_ops->pwr_on;
 	} else {
-		pwr_seq = adapter->hw_info->pwr_off_seq;
+		pwr_seq = adapter->mac_pwr_info.pwr_off_seq;
 		pwr_func = p_ops->pwr_off;
 		adapter->sm.pwr = MAC_AX_PWR_PRE_OFF;
 		adapter->sm.dmac_func = MAC_AX_FUNC_OFF;
@@ -344,22 +346,46 @@ u32 mac_pwr_switch(struct mac_ax_adapter *adapter, u8 on)
 	}
 
 	if (on) {
-		ret = mac_ps_pwr_state(adapter, MAC_AX_PWR_STATE_ACT_REQ,
-				       MAC_AX_RPWM_REQ_PWR_STATE_ACTIVE);
-		if (ret != MACSUCCESS) {
-			PLTFM_MSG_ERR("MAC_AX_PWR_STATE_ACT_REQ fail %X\n", ret);
-			goto END;
+		/* Read 0x3F0 */
+		val32 = MAC_REG_R32(R_AX_IC_PWR_STATE);
+		val32 = GET_FIELD(val32, B_AX_WLMAC_PWR_STE);
+		if (val32 != MAC_AX_MAC_OFF) {
+			/* 0x04[16] = 1 */
+			val32 = MAC_REG_R32(R_AX_SYS_PW_CTRL);
+			MAC_REG_W32(R_AX_SYS_PW_CTRL, val32 | B_AX_EN_WLON);
+			/* 0x04[9] = 1 */
+			val32 = MAC_REG_R32(R_AX_SYS_PW_CTRL);
+			MAC_REG_W32(R_AX_SYS_PW_CTRL, val32 | B_AX_APFM_OFFMAC);
+			/* polling 0x04[9] = 0 */
+			while (--cnt) {
+				val32 = MAC_REG_R32(R_AX_SYS_PW_CTRL);
+				val32 = val32 & B_AX_APFM_OFFMAC;
+				val32 = val32 >> B_AX_REG_CP_ICP_SEL_FAST_SH;
+				//val32 = GET_FIELD(val32, B_AX_APFM_OFFMAC);
+				if (val32 == MAC_AX_MAC_OFF)
+					break;
+				PLTFM_DELAY_US(PWR_POLL_DLY_US);
+			}
 		}
+		/* 0x04[16] = 0 */
+		val32 = MAC_REG_R32(R_AX_SYS_PW_CTRL);
+		MAC_REG_W32(R_AX_SYS_PW_CTRL, val32 & ~B_AX_EN_WLON);
+		/* 0x04[10] = 0 */
+		val32 = MAC_REG_R32(R_AX_SYS_PW_CTRL);
+		MAC_REG_W32(R_AX_SYS_PW_CTRL, val32 & ~B_AX_APFM_SWLPS);
 
-#if MAC_AX_8852A_SUPPORT || MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT
+		PLTFM_DELAY_MS(1);
+
+#if MAC_AX_8852A_SUPPORT || MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8852BT_SUPPORT
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		MAC_REG_W32(R_AX_AFE_CTRL1, MAC_REG_R32(R_AX_AFE_CTRL1) &
 			    ~B_AX_CMAC_CLK_SEL);
 	}
 #endif
-
+		#if 0
 		while (--cnt) {
 			val32 = MAC_REG_R32(R_AX_IC_PWR_STATE);
 			val32 = GET_FIELD(val32, B_AX_WLMAC_PWR_STE);
@@ -377,6 +403,7 @@ u32 mac_pwr_switch(struct mac_ax_adapter *adapter, u8 on)
 			ret = MACPWRSTAT;
 			goto END;
 		}
+		#endif
 	}
 
 	if (!pwr_func) {
@@ -429,4 +456,20 @@ END:
 		return ret_end;
 	}
 	return ret;
+}
+
+u32 mac_pwr_sps_ana_setting(struct mac_ax_adapter *adapter)
+{
+#if MAC_AX_8852B_SUPPORT
+	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852B)) {
+		struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
+		struct rtw_phl_com_t *phl_com = (struct rtw_phl_com_t *)adapter->phl_adapter;
+		u32 rfe_drv = (u32)phl_com->dev_cap.rfe_type;
+
+		if (rfe_drv == RFE_TYPE_05)
+			MAC_REG_W16(R_AX_SPS_ANA_ON_CTRL2, RFE_TYPE_05_SPS_ANA_VAL);
+	}
+
+#endif
+	return MACSUCCESS;
 }

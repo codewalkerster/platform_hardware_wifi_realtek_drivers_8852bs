@@ -94,6 +94,7 @@ struct rtw_trx_test_param {
 	u32 tx_payload_num;
 	u32 tx_payload_size;
 	enum pkt_type pkt_type;
+	u8 *tx_payload_buf;
 	u8 ap_mode;
 	u8 trx_mode;
 	u8 qta_mode;
@@ -109,11 +110,24 @@ struct rtw_trx_test_param {
 
 };
 
+#ifdef RTW_TEST_TX_PKT_USE_SHMEM_POOL
+struct rtw_txpkt_shmem_pool {
+	u8 *vir_addr;
+	u32 phy_addr_l;
+	u32 phy_addr_h;
+	u32 buf_len;
+	void *os_rsvd[1];
+};
+#endif
+
 struct phl_trx_test {
 	_os_list rx_q;
 	_os_lock rx_q_lock;
 	struct rtw_pool tx_req_pool;
 	struct rtw_pool rx_req_pool;
+#ifdef RTW_TEST_TX_PKT_USE_SHMEM_POOL
+	struct rtw_txpkt_shmem_pool tx_pkt_shmem_pool;
+#endif
 	struct rtw_pool tx_pkt_pool;
 	struct test_obj_ctrl_interface trx_test_obj;
 	struct rtw_trx_test_param test_param;
@@ -190,6 +204,9 @@ void rtw_phl_trx_default_param(void *phl,
 enum rtw_phl_status rtw_phl_trx_testsuite(void *phl, 
 					struct rtw_trx_test_param *test_param);
 void phl_test_sw_tx_cb(void *context);
+
+enum rtw_phl_status rtw_phl_trx_test_get_txreq_stats(void *phl,
+					u32 *idle, u32 *busy, u32 *total);
 
 #else /*!CONFIG_PHL_TEST_SUITE*/
 #define phl_trx_test_init(phl) RTW_PHL_STATUS_SUCCESS

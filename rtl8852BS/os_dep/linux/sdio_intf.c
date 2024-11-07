@@ -35,9 +35,13 @@ static const struct sdio_device_id sdio_ids[] = {
 
 #ifdef CONFIG_RTL8852B
 	{SDIO_DEVICE(0x024c, 0xb852), .class = SDIO_CLASS_WLAN, .driver_data = RTL8852B},
+	{SDIO_DEVICE(0x024c, 0xb853), .class = SDIO_CLASS_WLAN, .driver_data = RTL8852B},
 #endif
 #ifdef CONFIG_RTL8852BP
 	{SDIO_DEVICE(0x024c, 0xA85C), .class = SDIO_CLASS_WLAN, .driver_data = RTL8852BP},
+#endif
+#ifdef CONFIG_RTL8852BT
+	{SDIO_DEVICE(0x024c, 0xB925), .class = SDIO_CLASS_WLAN, .driver_data = RTL8852BT},
 #endif
 #ifdef CONFIG_RTL8851B
 	{SDIO_DEVICE(0x024c, 0xB851), .class = SDIO_CLASS_WLAN, .driver_data = RTL8851B},
@@ -760,6 +764,12 @@ static int rtw_dev_probe(
 		rtw_signal_process(ui_pid[1], SIGUSR2);
 	}
 #endif
+#ifdef CONFIG_RTW_CSI_NETLINK
+	rtw_csi_nl_init(dvobj);
+#endif
+#ifdef CONFIG_CSI_TIMER_POLLING
+	rtw_csi_poll_init(dvobj);
+#endif
 	RTW_INFO("-%s success\n", __func__);
 
 	return 0; /*_SUCCESS*/
@@ -802,6 +812,13 @@ static void rtw_dev_remove(struct sdio_func *func)
 	RTW_INFO("+%s\n", __func__);
 
 	dvobj->processing_dev_remove = _TRUE;
+
+#ifdef CONFIG_CSI_TIMER_POLLING
+	rtw_csi_poll_timer_cancel(dvobj);
+#endif
+#ifdef CONFIG_RTW_CSI_NETLINK
+	rtw_csi_nl_exit(dvobj);
+#endif
 
 	/* TODO: use rtw_os_ndevs_deinit instead at the first stage of driver's dev deinit function */
 	rtw_os_ndevs_unregister(dvobj);

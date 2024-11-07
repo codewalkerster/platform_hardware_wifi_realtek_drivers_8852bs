@@ -36,7 +36,7 @@
 #include "../phl_ext_tx_pwr_lmt_def.h"
 #include "../custom/phl_custom_def.h"
 #include "../custom/phl_custom_api.h"
-
+#include "../phl_version.h"
 #ifdef CONFIG_PCI_HCI
 #include "../hci/phl_trx_def_pcie.h"
 #endif
@@ -47,11 +47,13 @@
 #include "../hci/phl_trx_def_sdio.h"
 #endif
 
+#include "../phl_diagnose.h"
 #include "hal_general_def.h"
 #include "hal_config.h"
 #include "phy/bb/halbb_bb_wrapper_outsrc.h"
 #include "hal_def.h"
 #include "phy/bb/halbb_outsrc_def.h"
+#include "phy/rf/halrf_outsrc_def.h"
 #include "mac/mac_outsrc_def.h"
 #include "../phl_api_drv.h"
 #include "hal_struct.h"
@@ -59,6 +61,9 @@
 
 #ifdef CONFIG_PCI_HCI
 #include "hal_pci.h"
+#endif
+#ifdef CONFIG_USB_HCI
+#include "hal_usb.h"
 #endif
 
 #include "hal_api_mac.h"

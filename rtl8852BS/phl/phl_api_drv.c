@@ -14,7 +14,6 @@
  *****************************************************************************/
 #define _PHL_API_DRV_C_
 #include "phl_headers.h"
-#include "hal_headers.h"
 
 void *rtw_phl_get_txbd_buf(struct rtw_phl_com_t *phl_com)
 {
@@ -95,11 +94,20 @@ void rtw_phl_get_fw_ver(void *phl, char *ver_str, u16 len)
 	rtw_hal_get_fw_ver(phl_info->hal, ver_str, len);
 }
 
+#ifndef CONFIG_CORE_DBG_NONE
 enum rtw_fw_status rtw_phl_get_fw_status(void *phl)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
 
 	return rtw_hal_get_fw_status(phl_info->hal);
+}
+#endif
+
+enum rf_path rtw_phl_get_path_from_ant_num(void *phl, u8 antnum)
+{
+	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+
+	return rtw_hal_get_path_from_ant_num(phl_info->hal, antnum);
 }
 
 enum rtw_phl_status rtw_phl_msg_hub_hal_send(struct rtw_phl_com_t *phl_com,
@@ -169,12 +177,14 @@ void rtw_phl_test_txtb_cfg(struct rtw_phl_com_t* phl_com,
 	}
 }
 
+#ifdef CONFIG_PHL_PKTOFLD
 void rtw_phl_pkt_ofld_del_all_entry_req(struct rtw_phl_com_t* phl_com)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl_com->phl_priv;
 
 	phl_pkt_ofld_del_all_entry_req(phl_info);
 }
+#endif
 
 void rtw_phl_dbg_dump_rx(void *phl, struct rtw_wifi_role_t *wrole)
 {
@@ -196,49 +206,6 @@ u32 rtw_phl_get_phy_stat_info(void *phl, enum phl_band_idx hw_band,
 
 	return rtw_hal_get_phy_stat_info(phl_info->hal, hw_band, phy_stat);
 }
-
-u32 rtw_phl_efuse_get_logical_size(void *phl, u32 *size)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-
-	return rtw_hal_efuse_get_logical_size(phl_info->hal, size);
-}
-
-u32 rtw_phl_efuse_get_bt_logical_size(void *phl, u32 *size)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-
-	return rtw_hal_efuse_bt_get_logical_size(phl_info->hal, size);
-}
-
-u32 rtw_phl_efuse_shadow_load(void *phl, bool is_limit)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-
-	return rtw_hal_efuse_shadow_load(phl_info->hal, is_limit);
-}
-
-u32 rtw_phl_efuse_bt_shadow_load(void *phl)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-
-	return rtw_hal_efuse_bt_shadow_load(phl_info->hal);
-}
-
-u32 rtw_phl_efuse_shadow2buf(void *phl, u8 *pbuf, u16 buflen, bool is_limit)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-
-	return rtw_hal_efuse_shadow2buf(phl_info->hal, pbuf, buflen, is_limit);
-}
-
-u32 rtw_phl_efuse_bt_shadow2buf(void *phl, u8 *pbuf, u16 buflen)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-
-	return rtw_hal_efuse_bt_shadow2buf(phl_info->hal, pbuf, buflen);
-}
-
 
 #ifdef CONFIG_PHL_DRV_HAS_NVM
 enum rtw_phl_status

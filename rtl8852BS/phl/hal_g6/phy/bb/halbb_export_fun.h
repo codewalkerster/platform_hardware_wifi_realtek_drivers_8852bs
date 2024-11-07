@@ -32,6 +32,7 @@
 #include "halbb_dbg_cmd_ex.h"
 #include "halbb_physts_ex.h"
 #include "halbb_api_ex.h"
+#include "halbb_api_be_ex.h"
 #include "halbb_interface_ex.h"
 #include "halbb_dfs_ex.h"
 #include "halbb_dig_ex.h"
@@ -57,6 +58,8 @@
 #include "halbb_ant_div_ex.h"
 #include "halbb_dbg_cnsl_out_ex.h"
 #include "halbb_dbg_ex.h"
+#include "halbb_auto_dbg_ex.h"
+#include "halbb_spatial_reuse_ex.h"
 #ifdef BB_8852A_2_SUPPORT
 	#include "halbb_8852a_2/halbb_8852a_2_api_ex.h"
 #endif

@@ -183,6 +183,7 @@ _scanofld_start(struct phl_info_t *phl_info, struct rtw_wifi_role_link_t *rlink,
 		return pstatus;
 
 	rtw_hal_notification(phl_info->hal, MSG_EVT_SCANOFLD_START, rlink->hw_band);
+	rtw_hal_en_fw_log_comp(phl_info->hal, FL_COMP_SCAN, true);
 
 	/* trigger fw to start scan */
 	cfg.operation = SCAN_OFLD_OP_START;
@@ -214,6 +215,7 @@ _scanofld_stop(struct phl_info_t *phl_info, struct rtw_wifi_role_link_t *rlink,
 	rtw_hal_scan_ofld(phl_info->hal, sta->macid, rlink->hw_band,
 			  rlink->hw_port, &cfg);
 	rtw_hal_notification(phl_info->hal, MSG_EVT_SCANOFLD_END, rlink->hw_band);
+	rtw_hal_en_fw_log_comp(phl_info->hal, FL_COMP_SCAN, false);
 }
 
 static void
@@ -405,7 +407,7 @@ phl_cmd_scanofld_hdl_internal_evt(void* dispr,
 	struct rtw_phl_stainfo_t *sta = NULL;
 	struct rtw_scanofld_rsp *rsp = NULL;
 	struct phl_scan_channel *scan_ch = NULL;
-	u8 band_idx = 0xff, sctrl_idx = 0xff;
+	u8 band_idx = 0, sctrl_idx = 0xff;
 	struct cmd_scan_ctrl *sctrl = NULL;
 	u8 i = 0;
 

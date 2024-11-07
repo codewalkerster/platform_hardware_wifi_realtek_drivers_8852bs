@@ -24,6 +24,7 @@
 #define RTW_ALREADY		8
 #define RTW_RA_RESOLVING	9
 #define RTW_ORI_NO_NEED		10
+#define RTW_NOT_SUPPORT		15
 #define RTW_ABORT_LINKING	17
 
 /* #define RTW_STATUS_TIMEDOUT -110 */
@@ -36,9 +37,6 @@
 
 #ifdef PLATFORM_LINUX
 	#include <linux/version.h>
-#if defined(CONFIG_RTW_ANDROID_GKI)
-	#include <linux/firmware.h>
-#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
 	#include <linux/sched/signal.h>
 	#include <linux/sched/types.h>
@@ -101,6 +99,7 @@
 #endif
 
 extern int RTW_STATUS_CODE(int error_code);
+extern u16 rtw_warn_on_cnt;
 
 #ifndef RTK_DMP_PLATFORM
 	#define CONFIG_USE_VMALLOC
@@ -142,10 +141,10 @@ void rtw_mstat_dump(void *sel);
 bool match_mstat_sniff_rules(const enum mstat_f flags, const size_t size);
 void *dbg_rtw_vmalloc(u32 sz, const enum mstat_f flags, const char *func, const int line);
 void *dbg_rtw_zvmalloc(u32 sz, const enum mstat_f flags, const char *func, const int line);
-void dbg_rtw_vmfree(void *pbuf, const enum mstat_f flags, u32 sz, const char *func, const int line);
+void dbg_rtw_vmfree(void *pbuf, u32 sz, const enum mstat_f flags, const char *func, const int line);
 void *dbg_rtw_malloc(u32 sz, const enum mstat_f flags, const char *func, const int line);
 void *dbg_rtw_zmalloc(u32 sz, const enum mstat_f flags, const char *func, const int line);
-void dbg_rtw_mfree(void *pbuf, const enum mstat_f flags, u32 sz, const char *func, const int line);
+void dbg_rtw_mfree(void *pbuf, u32 sz, const enum mstat_f flags, const char *func, const int line);
 
 struct sk_buff *dbg_rtw_skb_alloc(unsigned int size, const enum mstat_f flags, const char *func, const int line);
 void dbg_rtw_skb_free(struct sk_buff *skb, const enum mstat_f flags, const char *func, const int line);
@@ -348,6 +347,31 @@ bool _rtw_time_after_eq(systime a, systime b);
 #define rtw_time_before_eq(a, b) _rtw_time_after_eq(b, a)
 #endif
 
+sysptime rtw_sptime_get(void);
+sysptime rtw_sptime_get_raw(void);
+sysptime rtw_sptime_set(s64 secs, const u32 nsecs);
+sysptime rtw_sptime_zero(void);
+
+int rtw_sptime_cmp(const sysptime cmp1, const sysptime cmp2);
+bool rtw_sptime_eql(const sysptime cmp1, const sysptime cmp2);
+bool rtw_sptime_is_zero(const sysptime sptime);
+sysptime rtw_sptime_sub(const sysptime lhs, const sysptime rhs);
+sysptime rtw_sptime_add(const sysptime lhs, const sysptime rhs);
+
+s64 rtw_sptime_to_ms(const sysptime sptime);
+sysptime rtw_ms_to_sptime(u64 ms);
+s64 rtw_sptime_to_us(const sysptime sptime);
+sysptime rtw_us_to_sptime(u64 us);
+s64 rtw_sptime_to_ns(const sysptime sptime);
+sysptime rtw_ns_to_sptime(u64 ns);
+
+s64 rtw_sptime_diff_ms(const sysptime start, const sysptime end);
+s64 rtw_sptime_pass_ms(const sysptime start);
+s64 rtw_sptime_diff_us(const sysptime start, const sysptime end);
+s64 rtw_sptime_pass_us(const sysptime start);
+s64 rtw_sptime_diff_ns(const sysptime start, const sysptime end);
+s64 rtw_sptime_pass_ns(const sysptime start);
+
 void rtw_sleep_schedulable(int ms);
 
 void rtw_msleep_os(int ms);
@@ -520,11 +544,28 @@ static inline int largest_bit_64(u64 bitmask)
 		} \
 	} while (0)
 
+#define MAC_FMT_LEN 18
+#ifdef CONFIG_RTW_HIDDEN_MAC_ADDR
+#ifndef MAC_FMT
+#define MAC_FMT "%02x:%02x:%02x:xx:xx:xx"
+#endif
+#ifndef MAC_ARG
+#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2]
+#endif
+#else /* CONFIG_RTW_HIDDEN_MAC_ADDR */
 #ifndef MAC_FMT
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #endif
 #ifndef MAC_ARG
 #define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
+#endif
+#endif /* CONFIG_RTW_HIDDEN_MAC_ADDR */
+
+#ifndef MAC_FMT_SEL
+#define MAC_FMT_SEL "%02x:%02x:%02x:%02x:%02x:%02x"
+#endif
+#ifndef MAC_ARG_SEL
+#define MAC_ARG_SEL(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 #endif
 
 bool rtw_macaddr_is_larger(const u8 *a, const u8 *b);
@@ -561,6 +602,8 @@ void rtw_free_netdev(struct net_device *netdev);
 u64 rtw_modular64(u64 x, u64 y);
 u64 rtw_division64(u64 x, u64 y);
  u32 rtw_random32(void);
+
+void rtw_wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked);
 
 /* Macros for handling unaligned memory accesses */
 

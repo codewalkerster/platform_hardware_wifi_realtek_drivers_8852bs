@@ -19,9 +19,17 @@
 
 #include "../type.h"
 
+#define MACTXEN_T1_FOR_SR 0x3C
+#define MACTXEN_T1_FOR_NOR 0x3E
+
 u32 mac_sr_update(struct mac_ax_adapter *adapter,
-		  struct mac_ax_sr_info *sr_info,
+		  struct rtw_mac_ax_sr_info *sr_info,
 		  enum mac_ax_band band);
+
+u32 mac_sr_update_with_msk(struct mac_ax_adapter *adapter,
+			   struct rtw_mac_ax_sr_info *sr_info_msk,
+			   struct rtw_mac_ax_sr_info *sr_info,
+			   enum mac_ax_band band);
 
 u32 spatial_reuse_init(struct mac_ax_adapter *adapter,
 		       enum mac_ax_band band);

@@ -77,6 +77,10 @@ void halbb_ic_hw_setting_init(struct bb_info *bb)
 	halbb_dyn_1r_cca_init(bb);
 	#endif
 
+	halbb_cfg_pmac_tx_info_init(bb);
+	halbb_cfg_lbk_info_init(bb);
+	halbb_mp_plcp_hdr_init(bb);
+
 	switch (bb->ic_type) {
 
 	#ifdef BB_8852A_2_SUPPORT
@@ -134,7 +138,44 @@ void halbb_ic_hw_setting_init(struct bb_info *bb)
 		break;
 	#endif
 
+	#ifdef BB_8922A_SUPPORT
+	case BB_RTL8922A:
+		halbb_ic_hw_setting_init_8922a(bb);
+		#ifdef HALBB_DYN_CSI_RSP_SUPPORT
+		halbb_dcr_init(bb);
+		#endif
+		break;
+	#endif
+
 	default:
+		break;
+	}
+}
+
+void halbb_cck_rpl_ofst_ref_init(struct bb_info *bb)
+{
+	switch (bb->ic_type) {
+
+	#ifdef BB_8922A_SUPPORT
+	case BB_RTL8922A:
+		bb->bb_efuse_i.cck_rpl_ofst_ref = 0xDC;
+		/* for 8922A r_g_offset only*/
+		bb->bb_efuse_i.efuse_ofst[0] = 0xF8;
+		break;
+	#endif
+	#ifdef BB_8934A_SUPPORT
+	case BB_RTL8934A:
+		bb->bb_efuse_i.cck_rpl_ofst_ref = 0xDE;
+		break;
+	#endif
+	#ifdef BB_8952A_SUPPORT
+	case BB_RTL8952A:
+		bb->bb_efuse_i.cck_rpl_ofst_ref = 0xDE;
+		break;
+	#endif
+
+	default:
+		BB_WARNING("[%s] There is no cck_rpl_ofst_ref !\n", __func__);
 		break;
 	}
 }
@@ -177,6 +218,12 @@ void halbb_get_efuse_init(struct bb_info *bb)
 		break;
 	#endif
 
+	#ifdef BB_8922A_SUPPORT
+	case BB_RTL8922A:
+		halbb_get_normal_efuse_init_8922a(bb);
+		break;
+	#endif
+
 	default:
 		break;
 	}
@@ -208,6 +255,15 @@ void halbb_bb_pre_init(struct bb_info *bb, enum phl_phy_idx phy_idx)
 void halbb_bb_post_init(struct bb_info *bb, enum phl_phy_idx phy_idx)
 {
 	BB_DBG(bb, DBG_INIT, "[%s]\n", __func__);
+	if (bb->bb_80211spec != BB_BE_IC)
+		return;
+
+	halbb_show_cr_cnt(bb, BB_INIT_POST_INIT);
+	halbb_show_rf_cr_cnt(bb, BB_INIT_POST_INIT);
+	#ifdef HALBB_FW_OFLD_SUPPORT
+	BB_TRACE("======[%s]======\n",__func__);
+	halbb_fwofld_bitmap_en(bb, true, FW_OFLD_DM_INIT);
+	#endif
 
 	switch (bb->ic_type) {
 
@@ -226,6 +282,12 @@ void halbb_bb_post_init(struct bb_info *bb, enum phl_phy_idx phy_idx)
 	default:
 		break;
 	}
+	#ifdef HALBB_FW_OFLD_SUPPORT
+	halbb_fwofld_bitmap_en(bb, false, FW_OFLD_DM_INIT);
+	#endif
+
+	halbb_show_cr_cnt(bb, BB_INIT_POST_INIT);
+	halbb_show_rf_cr_cnt(bb, BB_INIT_POST_INIT);
 }
 
 void halbb_mlo_cfg_init(struct bb_info *bb)
@@ -245,6 +307,12 @@ void halbb_mlo_cfg_init(struct bb_info *bb)
 		break;
 	#endif
 
+	#ifdef BB_8922A_SUPPORT
+	case BB_RTL8922A:
+		halbb_ctrl_mlo_mode_8922a(bb, bb->phl_com->dev_cap.mlo_dbcc_mode);
+		break;
+	#endif
+
 	default:
 		break;
 	}
@@ -257,7 +325,7 @@ void halbb_cmn_info_self_init_cmn_hook(struct bb_info *bb)
 	bb->bb_cmn_hooker->bb_dm_number = sizeof(halbb_func_i) / sizeof(struct halbb_func_info);
 
 	#ifdef HALBB_FW_OFLD_SUPPORT
-	bb->bb_cmn_hooker->skip_io_init_en = true;
+	bb->bb_cmn_hooker->skip_io_init_en = false;
 	#endif
 }
 
@@ -281,6 +349,15 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 	} else if (hal_i->chip_id == CHIP_WIFI6_8852D) {
 		bb->ic_type = BB_RTL8852C;
 		bb->ic_sub_type = BB_IC_SUB_TYPE_8852C_8852D;
+	#endif
+	#ifdef BB_8842A_SUPPORT
+	} else if (hal_i->chip_id == CHIP_WIFI6_8842A) {
+		bb->ic_type = BB_RTL8852C;
+
+		if (hal_i->aid == 0x6967)
+			bb->a_die_id = BB_IC_SUB_TYPE_8852C_8842A_6967A;
+		else
+			bb->ic_sub_type = BB_IC_SUB_TYPE_8852C_8842A;
 	#endif
 	} else if (hal_i->chip_id == CHIP_WIFI6_8834A) {
 		bb->ic_type = BB_RTL8834A;
@@ -308,8 +385,18 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 #endif
 	} else if (hal_i->chip_id == CHIP_WIFI6_8851B) {
 		bb->ic_type = BB_RTL8851B;
+	#ifdef CONFIG_RTL8852BT
+	} else if (hal_i->chip_id == CHIP_WIFI6_8852BT) {
+		bb->ic_type = BB_RTL8852B;
+		bb->ic_sub_type = BB_IC_SUB_TYPE_8852B_8852BT;
+	#endif	
 	} else if (hal_i->chip_id == CHIP_WIFI7_8922A) {
 		bb->ic_type = BB_RTL8922A;
+	#ifdef CONFIG_RTL8852BPT
+	} else if (hal_i->chip_id == CHIP_WIFI6_8852BPT) {
+		bb->ic_type = BB_RTL8852B;
+		bb->ic_sub_type = BB_IC_SUB_TYPE_8852B_8852BPT;
+	#endif	
 	} else {
 		BB_WARNING("[%s] chip_id=%d \n", __func__, hal_i->chip_id);
 	}
@@ -323,6 +410,8 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 		bb->cr_type = BB_CLIENT;
 	else if (bb->ic_type & BB_IC_BE_0)
 		bb->cr_type = BB_BE0;
+	else if (bb->ic_type & BB_IC_BE_1)
+		bb->cr_type = BB_BE1;
 
 	if (bb->ic_type & BB_IC_AX_SERIES) {
 		bb->bb_80211spec = BB_AX_IC;
@@ -333,17 +422,44 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 		bb->bb0_mcu_cr_offset = 0x30000;
 	}
 
-	/*[RF path number]*/
-	if (bb->ic_type & BB_IC_1SS)
-		bb->num_rf_path = 1;
-	else if (bb->ic_type & BB_IC_2SS)
-		bb->num_rf_path = 2;
-	else if (bb->ic_type & BB_IC_3SS)
-		bb->num_rf_path = 3;
-	else if (bb->ic_type & BB_IC_4SS)
-		bb->num_rf_path = 4;
+	/*[Wlan mode]*/
+	if (bb->ic_type & BB_IC_AX_SERIES)
+		bb->bb_cmn_hooker->wlan_mode_max = WLAN_MD_11AX;
+	else if (bb->ic_type & BB_IC_AC_SERIES)
+		bb->bb_cmn_hooker->wlan_mode_max = WLAN_MD_11AC;
 	else
+		bb->bb_cmn_hooker->wlan_mode_max = WLAN_MD_11N;
+
+	/*[N_SS number]*/
+	if (bb->ic_type & BB_IC_1SS)
+		bb->num_ss = 1;
+	else if (bb->ic_type & BB_IC_2SS)
+		bb->num_ss = 2;
+	else if (bb->ic_type & BB_IC_3SS)
+		bb->num_ss = 3;
+	else if (bb->ic_type & BB_IC_4SS)
+		bb->num_ss = 4;
+	else
+		bb->num_ss = 1;
+
+	/*[RF path number / N_STS]*/
+	if (bb->ic_type & BB_IC_1SS) {
 		bb->num_rf_path = 1;
+	} else if (bb->ic_type & BB_IC_2SS) {
+		bb->num_rf_path = 2;
+	} else if (bb->ic_type & BB_IC_3SS) {
+		bb->num_rf_path = 3;
+	} else if (bb->ic_type & BB_IC_4SS) {
+		bb->num_rf_path = 4;
+
+		#if 0
+		if (bb->ic_type & BB_RTL8934A)
+			bb->num_rf_path = 5;
+		#endif
+	} else {
+		BB_WARNING("bb->num_rf_path=%d", bb->num_rf_path);
+		bb->num_rf_path = 1;
+	}
 
 #ifdef HALBB_COMPILE_IC_DBCC
 	bb->bb_cmn_hooker->ic_dbcc_support = false;
@@ -371,7 +487,7 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 	#endif
 
 	#ifdef HALBB_FW_OFLD_SUPPORT
-	halbb_fwofld_bitmap_init(bb);
+	halbb_fwofld_bitmap_init(bb); /*will be removed when halbb_early_init is ready*/
 	#endif
 
 	BB_DBG(bb, DBG_INIT, "cr_type=%d, num_rf_path=%d\n",
@@ -390,6 +506,7 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 	/*[Drv Dbg Info]*/
 	bb->cmn_dbg_msg_period = 2;
 	bb->cmn_dbg_msg_cnt = 0;
+	bb->bb_cmn_hooker->lbk_verify_en = false;
 	/*[Dummy]*/
 	bb->bool_dummy = false;
 	bb->u8_dummy = 0xff;
@@ -402,6 +519,7 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 	bb->bb_path_i.rx_path_en = bb->num_rf_path;
 	bb->bb_path_i.tx_path_en = bb->num_rf_path;
 	bb->adv_bb_dm_en = true;
+	bb->bb_cmn_hooker->watchdog_io_saving_en = false;
 
 	bb->bb_cmn_info_init_ready = true;
 	bb->bb_watchdog_period = 2; /*sec*/
@@ -413,8 +531,10 @@ void halbb_cmn_info_self_init_per_phy(struct bb_info *bb)
 	if (bb->bb_phy_idx == HW_PHY_0)
 		halbb_cmn_info_self_init_cmn_hook(bb);
 
-	bb->bb_dbg_i.cr_fake_init_hook_en = (bb->ic_type == BB_RLE1115) ? true : false;
+	bb->bb_dbg_i.cr_fake_init_hook_en = true;
 	bb->bb_dbg_i.cr_fake_init_hook_val = 0xfc;
+	bb->bb_api_i.ch_switch_cnt = 0;
+	bb->bb_api_i.ch_switch_ptr = 0;
 }
 
 u64 halbb_supportability_default(struct bb_info *bb)
@@ -435,6 +555,7 @@ u64 halbb_supportability_default(struct bb_info *bb)
 				BB_CFO_TRK |
 				BB_DIG |
 				BB_UL_TB_CTRL |
+				/*BB_AUTO_DBG |*/
 				/*BB_ANT_DIV |*/
 				/*BB_PATH_DIV |*/
 				BB_PWR_CTRL |
@@ -443,7 +564,9 @@ u64 halbb_supportability_default(struct bb_info *bb)
 #endif
 #ifdef BB_8852B_SUPPORT
 	case BB_RTL8852B:
-		support_ability |=
+		if (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP ||
+		    bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT) {
+			support_ability |=
 				BB_RA |
 				BB_FA_CNT |
 				BB_DFS |
@@ -453,12 +576,25 @@ u64 halbb_supportability_default(struct bb_info *bb)
 				BB_DIG |
 				BB_PATH_DIV |
 				BB_UL_TB_CTRL |
-		#ifndef CONFIG_RTW_IPCAM_APPLICATION
+				/*BB_AUTO_DBG |*/
 				BB_PWR_CTRL |
-		#endif /*CONFIG_RTW_IPCAM_APPLICATION*/
 				0;
-
-		break;
+		} else {
+			support_ability |=
+				BB_RA |
+				BB_FA_CNT |
+				BB_DFS |
+				BB_EDCCA |
+				BB_CFO_TRK |
+				BB_ENVMNTR |
+				BB_DIG |
+				/*BB_PATH_DIV |*/
+				BB_UL_TB_CTRL |
+				/*BB_AUTO_DBG |*/
+				BB_PWR_CTRL |
+				0;
+		}
+	break;
 #endif
 #ifdef BB_8852C_SUPPORT
 		case BB_RTL8852C:
@@ -471,6 +607,7 @@ u64 halbb_supportability_default(struct bb_info *bb)
 				BB_CFO_TRK |
 				BB_UL_TB_CTRL |
 				BB_DIG |
+				/*BB_AUTO_DBG |*/
 				/*BB_ANT_DIV |*/
 				BB_PATH_DIV |
 				BB_PWR_CTRL |
@@ -487,6 +624,7 @@ u64 halbb_supportability_default(struct bb_info *bb)
 				BB_ENVMNTR |
 				BB_CFO_TRK |
 				BB_DIG |
+				/*BB_AUTO_DBG |*/
 				/*BB_ANT_DIV |*/
 				/*BB_PWR_CTRL |*/
 				0;
@@ -503,6 +641,7 @@ u64 halbb_supportability_default(struct bb_info *bb)
 				BB_ENVMNTR |
 				BB_DIG |
 				BB_UL_TB_CTRL |
+				/*BB_AUTO_DBG |*/
 				BB_PWR_CTRL |
 				0;
 
@@ -514,14 +653,32 @@ u64 halbb_supportability_default(struct bb_info *bb)
 				BB_RA |
 				BB_FA_CNT |
 				/*BB_DFS |*/
-				/*BB_EDCCA |*/
+				BB_EDCCA |
 				BB_CFO_TRK |
 				BB_ENVMNTR |
 				BB_DIG |
 				/*BB_UL_TB_CTRL |*/
+				/*BB_AUTO_DBG |*/
 				/*BB_PWR_CTRL |*/
 				0;
 
+			break;
+#endif
+#ifdef BB_8922A_SUPPORT
+			case BB_RTL8922A:
+				support_ability |=
+					BB_RA |
+					BB_FA_CNT |
+					/*BB_DFS |*/
+					BB_EDCCA |
+					BB_CFO_TRK |
+					BB_ENVMNTR |
+					BB_DIG |
+					BB_PATH_DIV |
+					/*BB_UL_TB_CTRL |*/
+					/*BB_AUTO_DBG |*/
+					/*BB_PWR_CTRL |*/
+					0;
 			break;
 #endif
 
@@ -534,7 +691,9 @@ u64 halbb_supportability_default(struct bb_info *bb)
 		support_ability &= ~BB_CFO_TRK;
 #endif
 #ifdef HALBB_ANT_DIV_SUPPORT
-	if ((bb->ic_type == BB_RTL8851B) && ((dev->rfe_type % 3) == 2))
+	if (dev->rfe_type >= 50 && dev->antdiv_sup == true)
+		support_ability |= BB_ANT_DIV;
+	else if ((bb->ic_type == BB_RTL8851B) && ((dev->rfe_type % 3) == 2))
 		support_ability |= BB_ANT_DIV;
 #endif
 	return support_ability;
@@ -579,9 +738,24 @@ void halbb_hw_init(struct bb_info *bb)
 	halbb_print_devider(bb, BB_DEVIDER_LEN_32, true, DBG_INIT);
 }
 
-void halbb_dm_deinit(struct rtw_phl_com_t *phl_com, void *bb_phy_0)
+void halbb_dm_deinit_per_phy(struct bb_info *bb_0, enum phl_phy_idx phy_idx)
 {
-	struct bb_info *bb = (struct bb_info *)bb_phy_0;
+	struct bb_info *bb = bb_0;
+
+	if (!bb_0) {
+		BB_WARNING("[%s] *bb = NULL", __func__);
+		return;
+	}
+
+	if (!bb_0->bb_cmn_info_init_ready) {
+		BB_WARNING("bb_cmn_info_init_ready = false");
+		return;
+	}
+
+#ifdef HALBB_DBCC_SUPPORT
+	HALBB_GET_PHY_PTR(bb_0, bb, phy_idx);
+	BB_DBG(bb, DBG_INIT, "[%s] phy_idx=%d\n", __func__, bb->bb_phy_idx);
+#endif
 
 	if (!bb->bb_dm_init_ready)
 		return;
@@ -602,6 +776,18 @@ void halbb_dm_deinit(struct rtw_phl_com_t *phl_com, void *bb_phy_0)
 	#endif
 
 	bb->bb_dm_init_ready = false;
+}
+
+void halbb_dm_deinit(struct rtw_phl_com_t *phl_com, void *bb_phy_0)
+{
+	struct bb_info *bb = (struct bb_info *)bb_phy_0;
+
+	#ifdef HALBB_DBCC_SUPPORT
+	if (bb->ic_type & BB_IC_DBCC)
+		halbb_dm_deinit_per_phy(bb, HW_PHY_1);
+	#endif
+
+	halbb_dm_deinit_per_phy(bb, HW_PHY_0);
 }
 
 enum rtw_hal_status halbb_dm_init_per_phy(struct bb_info *bb_0, enum phl_phy_idx phy_idx)
@@ -625,24 +811,26 @@ enum rtw_hal_status halbb_dm_init_per_phy(struct bb_info *bb_0, enum phl_phy_idx
 #endif
 	halbb_ic_hw_setting_init(bb);
 	halbb_gpio_setting_init(bb);
+
+	halbb_cck_rpl_ofst_ref_init(bb);
 	halbb_get_efuse_init(bb);
 	halbb_mlo_cfg_init(bb);
-
+	halbb_pause_func_init(bb);
 	halbb_supportability_init(bb);
 	halbb_physts_parsing_init(bb);
 	halbb_cmn_rpt_init(bb);
 	halbb_dbg_setting_init(bb);
+	halbb_hw_cfg_init(bb);
 
 	#ifdef HALBB_SR_SUPPORT
 	halbb_txdiff_tbl_init(bb);
+	halbb_spatial_reuse_init(bb);
 	#endif
 	#ifdef HALBB_PWR_CTRL_SUPPORT
 	halbb_macid_ctrl_init(bb);
-
+	#endif
 	#ifdef HALBB_BB_WRAP_SUPPORT
 	halbb_bb_wrap_init(bb, bb->bb_phy_idx);
-	#endif
-
 	#endif
 	#ifdef HALBB_STATISTICS_SUPPORT
 	halbb_statistics_init(bb);
@@ -689,14 +877,20 @@ enum rtw_hal_status halbb_dm_init_per_phy(struct bb_info *bb_0, enum phl_phy_idx
 	#ifdef HALBB_PATH_DIV_SUPPORT
 	halbb_pathdiv_init(bb);
 	#endif
-	#ifdef HALBB_DIG_MCC_SUPPORT
-	Halbb_init_mccdm(bb);
+	#ifdef HALBB_MCC_SUPPORT
+	halbb_init_mccdm(bb);
 	#endif
 	#ifdef HALBB_PMAC_TX_SUPPORT
 	halbb_plcp_init(bb);
 	#endif
 	#ifdef HALBB_SNIF_SUPPORT
 	halbb_sniffer_phy_sts_init(bb);
+	#endif
+	#ifdef HALBB_DV_PXP_DBG_SUPPORT
+	halbb_dv_pxp_dbg_init(bb);
+	#endif
+	#ifdef HALBB_AUTO_DBG_SUPPORT
+	halbb_auto_debug_init(bb);
 	#endif
 	bb->bb_dm_init_ready = true;
 	BB_DBG(bb, DBG_INIT, "bb_init_ready = %d\n", bb->bb_dm_init_ready);
@@ -713,6 +907,10 @@ void halbb_dbcc_dm_init_phy1(struct bb_info *bb_0)
 	BB_DBG(bb, DBG_DBCC, "[%s] phy_idx=%d\n", __func__, bb->bb_phy_idx);
 
 	halbb_physts_parsing_init(bb);
+
+	#ifdef HALBB_DIG_SUPPORT
+	halbb_dig_init(bb);
+	#endif
 
 	#ifdef HALBB_CFO_TRK_SUPPORT
 	halbb_cfo_trk_init(bb);
@@ -736,8 +934,12 @@ void halbb_dbcc_dm_init_phy0(struct bb_info *bb_0)
 	halbb_physts_parsing_init(bb);
 }
 #endif
+
 enum rtw_hal_status halbb_dm_init(struct bb_info *bb_0, enum phl_phy_idx phy_idx)
 {
+	halbb_show_cr_cnt(bb_0, BB_INIT_DM);
+	halbb_show_rf_cr_cnt(bb_0, BB_INIT_DM);
+
 	#ifdef HALBB_FW_OFLD_SUPPORT
 	halbb_fwofld_bitmap_en(bb_0, true, FW_OFLD_DM_INIT);
 	#endif
@@ -745,7 +947,7 @@ enum rtw_hal_status halbb_dm_init(struct bb_info *bb_0, enum phl_phy_idx phy_idx
 	halbb_dm_init_per_phy(bb_0, HW_PHY_0);
 
 	#ifdef HALBB_DBCC_SUPPORT
-	if (bb_0->phl_com->dev_cap.dbcc_sup)
+	if (bb_0->ic_type & BB_IC_DBCC)
 		halbb_dm_init_per_phy(bb_0, HW_PHY_1);
 	#endif
 
@@ -753,14 +955,47 @@ enum rtw_hal_status halbb_dm_init(struct bb_info *bb_0, enum phl_phy_idx phy_idx
 	halbb_fwofld_bitmap_en(bb_0, false, FW_OFLD_DM_INIT);
 	#endif
 
+	halbb_show_cr_cnt(bb_0, BB_INIT_DM);
+	halbb_show_rf_cr_cnt(bb_0, BB_INIT_DM);
+
+	return RTW_HAL_STATUS_SUCCESS;
+}
+
+void halbb_early_init_per_phy(struct bb_info *bb_0, enum phl_phy_idx phy_idx)
+{
+	struct bb_info *bb = bb_0;
+
+#ifdef HALBB_DBCC_SUPPORT
+		HALBB_GET_PHY_PTR(bb_0, bb, phy_idx);
+		BB_DBG(bb, DBG_INIT, "[%s] phy_idx=%d\n", __func__, bb->bb_phy_idx);
+#endif
+	halbb_show_cr_cnt(bb_0, BB_INIT_EARLY);
+	halbb_show_rf_cr_cnt(bb_0, BB_INIT_EARLY);
+
+	#ifdef HALBB_FW_OFLD_SUPPORT
+	halbb_fwofld_init(bb);
+	#endif
+
+	halbb_show_cr_cnt(bb_0, BB_INIT_EARLY);
+	halbb_show_rf_cr_cnt(bb_0, BB_INIT_EARLY);
+}
+
+enum rtw_hal_status halbb_early_init(struct bb_info *bb_0)
+{
+	/*Init Sequence: halbb_buffer_init -> halbb_early_init -> halbb_init_reg -> halbb_dm_init*/
+
+	halbb_early_init_per_phy(bb_0, HW_PHY_0);
+
+	#ifdef HALBB_DBCC_SUPPORT
+	if (bb_0->phl_com->dev_cap.dbcc_sup)
+		halbb_early_init_per_phy(bb_0, HW_PHY_1);
+	#endif
+
 	return RTW_HAL_STATUS_SUCCESS;
 }
 
 void halbb_timer_ctrl(struct bb_info *bb, enum bb_timer_cfg_t timer_state)
 {
-	if (bb->bb_phy_idx == HW_PHY_1)
-		return;
-
 	BB_DBG(bb, DBG_INIT, "[%s] phy_idx=%d\n", __func__, bb->bb_phy_idx);
 	BB_DBG(bb, DBG_INIT, "%s all timer\n",
 	       ((timer_state == BB_SET_TIMER) ? "SET" : ((timer_state == BB_CANCEL_TIMER) ? "CANCEL" : ("RLS"))));
@@ -782,9 +1017,6 @@ void halbb_timer_ctrl(struct bb_info *bb, enum bb_timer_cfg_t timer_state)
 	halbb_cfg_timers(bb, timer_state, &bb->bb_dyn_dtr_i.dtr_timer_i);
 	#endif
 
-	if (!bb->bb_cmn_hooker)
-		return;
-
 	/*BB Common Timer*/
 	#ifdef HALBB_LA_MODE_SUPPORT
 	halbb_cfg_timers(bb, timer_state, &bb->bb_cmn_hooker->bb_la_mode_i.la_timer_i);
@@ -795,8 +1027,8 @@ void halbb_timer_init(struct bb_info *bb)
 {
 	BB_DBG(bb, DBG_INIT, "[%s] phy_idx=%d\n", __func__, bb->bb_phy_idx);
 
-	if (bb->bb_phy_idx == HW_PHY_1)
-		return;
+	// if (bb->bb_phy_idx == HW_PHY_1)
+	// 	return;
 
 	#ifdef HALBB_ANT_DIV_SUPPORT
 	halbb_antdiv_timer_init(bb);
@@ -816,53 +1048,56 @@ void halbb_timer_init(struct bb_info *bb)
 
 	/*Common Hooker*/
 	#ifdef HALBB_LA_MODE_SUPPORT
-	if (bb->bb_phy_idx == HW_PHY_0)
-		halbb_la_timer_init(bb);
+	halbb_la_timer_init(bb);
 	#endif
 }
 
 void halbb_cr_cfg_init(struct bb_info *bb)
 {
-	halbb_cr_cfg_dbg_init(bb);
-	halbb_cr_cfg_physts_init(bb);
-	#ifdef HALBB_STATISTICS_SUPPORT
-	halbb_cr_cfg_stat_init(bb);
-	#endif
-	#ifdef HALBB_DIG_SUPPORT
-	halbb_cr_cfg_dig_init(bb);
-	#endif
-	#ifdef HALBB_ENV_MNTR_SUPPORT
-	halbb_cr_cfg_env_mntr_init(bb);
-	#endif
-	#ifdef HALBB_EDCCA_SUPPORT
-	halbb_cr_cfg_edcca_init(bb);
-	#endif
-	#ifdef HALBB_DFS_SUPPORT
-	halbb_cr_cfg_dfs_init(bb);
-	#endif
-	#ifdef HALBB_ANT_DIV_SUPPORT
-	halbb_cr_cfg_antdiv_init(bb);
-	#endif
-	#ifdef HALBB_PMAC_TX_SUPPORT
-		halbb_cr_cfg_plcp_init(bb);
-
-		#ifdef HALBB_COMPILE_BE_SERIES
-		halbb_cr_cfg_plcp_init_7(bb);
-		#endif
-	#endif
-	halbb_cr_cfg_mp_init(bb);
-	#ifdef HALBB_CH_INFO_SUPPORT
-	halbb_cr_cfg_ch_info_init(bb);
-	#endif
-	#ifdef HALBB_CFO_TRK_SUPPORT
-	halbb_cr_cfg_cfo_trk_init(bb);
-	#endif
-	#ifdef HALBB_UL_TB_CTRL_SUPPORT
-	halbb_cr_cfg_ul_tb_init(bb);
-	#endif
-
 	/*Common Hooker*/
 	if (bb->bb_phy_idx == HW_PHY_0) {
+		halbb_cr_cfg_dbg_init(bb);
+		halbb_cr_cfg_physts_init(bb);
+		#ifdef HALBB_STATISTICS_SUPPORT
+		halbb_cr_cfg_stat_init(bb);
+		#endif
+		#ifdef HALBB_DIG_SUPPORT
+		halbb_cr_cfg_dig_init(bb);
+		#endif
+		#ifdef HALBB_ENV_MNTR_SUPPORT
+		halbb_cr_cfg_env_mntr_init(bb);
+		#endif
+		#ifdef HALBB_EDCCA_SUPPORT
+		halbb_cr_cfg_edcca_init(bb);
+		#endif
+		#ifdef HALBB_DFS_SUPPORT
+		halbb_cr_cfg_dfs_init(bb);
+		#endif
+		#ifdef HALBB_ANT_DIV_SUPPORT
+		halbb_cr_cfg_antdiv_init(bb);
+		#endif
+		#ifdef HALBB_PMAC_TX_SUPPORT
+			halbb_cr_cfg_plcp_init(bb);
+
+			#ifdef HALBB_COMPILE_BE_SERIES
+			halbb_cr_cfg_plcp_init_7(bb);
+			#endif
+		#endif
+		halbb_cr_cfg_mp_init(bb);
+		#ifdef HALBB_CH_INFO_SUPPORT
+		halbb_cr_cfg_ch_info_init(bb);
+		#endif
+		#ifdef HALBB_CFO_TRK_SUPPORT
+		halbb_cr_cfg_cfo_trk_init(bb);
+		#endif
+		#ifdef HALBB_UL_TB_CTRL_SUPPORT
+		halbb_cr_cfg_ul_tb_init(bb);
+		#endif
+		#ifdef HALBB_SR_SUPPORT
+		halbb_cr_cfg_spatial_reuse_init(bb);
+		#endif
+		halbb_cr_cfg_hw_cfg_init(bb);
+
 		#ifdef HALBB_PSD_SUPPORT
 		halbb_cr_cfg_psd_init(bb);
 		#endif
@@ -880,6 +1115,13 @@ void halbb_buffer_deinit(struct rtw_phl_com_t *phl_com,
 
 	BB_DBG(bb, DBG_INIT, "[0]deinit phy-%d", bb->bb_phy_idx);
 	halbb_timer_ctrl(bb, BB_RELEASE_TIMER);
+	#ifdef HALBB_DBCC_SUPPORT
+	/*Release phy-1 timer*/
+	if (bb->ic_type & BB_IC_DBCC) {
+		if (bb->bb_phy_hooker)
+			halbb_timer_ctrl(bb->bb_phy_hooker, BB_RELEASE_TIMER);
+	}
+	#endif
 
 	/*Deinit phy-cmn*/
 	if (bb->bb_cmn_hooker) {
@@ -888,17 +1130,15 @@ void halbb_buffer_deinit(struct rtw_phl_com_t *phl_com,
 	}
 	#ifdef HALBB_DBCC_SUPPORT
 	/*Deinit phy-1*/
-	if (bb->bb_phy_hooker) {
-		BB_DBG(bb, DBG_INIT, "[2]deinit phy-%d", bb->bb_phy_hooker->bb_phy_idx);
-		//halbb_timer_ctrl(bb->bb_phy_hooker, BB_CANCEL_TIMER);
-		//halbb_timer_ctrl(bb->bb_phy_hooker, BB_RELEASE_TIMER);
-		hal_mem_free(hal_com, bb->bb_phy_hooker, sizeof(struct bb_info));
+	if (bb->ic_type & BB_IC_DBCC) {
+		if (bb->bb_phy_hooker) {
+			BB_DBG(bb, DBG_INIT, "[2]deinit phy-%d", bb->bb_phy_hooker->bb_phy_idx);
+			hal_mem_free(hal_com, bb->bb_phy_hooker, sizeof(struct bb_info));
+		}
 	}
 	#endif
 	/*Deinit phy-0*/
-	if (bb) {
-		hal_mem_free(hal_com, bb, sizeof(struct bb_info));
-	}
+	hal_mem_free(hal_com, bb, sizeof(struct bb_info));
 }
 
 u32
@@ -908,6 +1148,8 @@ halbb_buffer_init(struct rtw_phl_com_t *phl_com,
 	enum rtw_hal_status hal_status = RTW_HAL_STATUS_SUCCESS;
 	struct bb_info *bb_0 = NULL;
 	struct bb_cmn_info *bb_cmn = NULL;
+
+	/*Init Sequence: halbb_buffer_init -> halbb_early_init -> halbb_init_reg -> halbb_dm_init*/
 
 	/*---[PHY-0 Init]----------------------------------------------------*/
 	bb_0 = hal_mem_alloc(hal_com, sizeof(struct bb_info));
@@ -935,7 +1177,8 @@ halbb_buffer_init(struct rtw_phl_com_t *phl_com,
 
 	/*---[PHY-1 Init]----------------------------------------------------*/
 	#ifdef HALBB_DBCC_SUPPORT
-	hal_status = halbb_buffer_init_phy1(bb_0);
+	if (bb_0->ic_type & BB_IC_DBCC)
+		hal_status = halbb_buffer_init_phy1(bb_0);
 	#else
 	BB_DBG(bb_0, DBG_INIT, "DBCC macro not enabled\n");
 	#endif

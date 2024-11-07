@@ -483,19 +483,6 @@ static int phl_tx_sdio_thrd_hdl(void *context)
 	enum rtw_hal_status hstatus;
 	enum phl_tx_status tx_status;
 
-	#ifdef RTW_XMIT_THREAD_HIGH_PRIORITY
-	#ifdef PLATFORM_LINUX
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
-		sched_set_fifo_low(current);
-	#else
-		struct sched_param param = { .sched_priority = 1 };
-
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	#endif
-	#endif /* PLATFORM_LINUX */
-	#endif /*RTW_XMIT_THREAD_HIGH_PRIORITY*/
-
-
 
 	PHL_INFO("SDIO: tx thread start\n");
 
@@ -622,17 +609,6 @@ static void phl_tx_callback_sdio(void *context)
 	bool rsrc;
 #endif /* SDIO_TX_THREAD */
 
-	#ifdef RTW_XMIT_THREAD_CB_HIGH_PRIORITY
-	#ifdef PLATFORM_LINUX
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
-	sched_set_fifo_low(current);
-	#else
-		struct sched_param param = { .sched_priority = 1 };
-
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	#endif
-	#endif /* PLATFORM_LINUX */
-	#endif /* RTW_XMIT_THREAD_CB_HIGH_PRIORITY */
 
 	phl_handler = (struct rtw_phl_handler *)phl_container_of(context,
 						     struct rtw_phl_handler,
@@ -898,12 +874,6 @@ static enum rtw_phl_status phl_rx_sdio(struct phl_info_t *phl)
 					  phl_rx->type, len);
 			}
 
-#ifdef CONFIG_PHL_DUMP_TRX_STATUS
-			if (phl->phl_com->check_rx_int == 1)
-				PHL_TRACE(COMP_PHL_RECV, _PHL_ALWAYS_,
-					  "%s type(0x%x)\n", __func__, phl_rx->type);
-#endif /*CONFIG_PHL_DUMP_TRX_STATUS*/
-
 			switch (phl_rx->type) {
 			case RTW_RX_TYPE_WIFI:
 
@@ -1042,18 +1012,6 @@ static void phl_rx_callback_sdio(void *context)
 	struct phl_info_t *phl_info;
 	bool rx_pause = false;
 
-	#ifdef RTW_RECV_THREAD_HIGH_PRIORITY
-	#ifdef PLATFORM_LINUX
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
-	sched_set_fifo_low(current);
-	#else
-	struct sched_param param = { .sched_priority = 1 };
-
-	sched_setscheduler(current, SCHED_FIFO, &param);
-	#endif
-	#endif /* PLATFORM_LINUX */
-	#endif /*RTW_RECV_THREAD_HIGH_PRIORITY*/
-
 	phl_handler = (struct rtw_phl_handler *)phl_container_of(context,
 						     struct rtw_phl_handler,
 						     os_handler);
@@ -1106,10 +1064,6 @@ static enum rtw_phl_status phl_register_trx_hdlr_sdio(struct phl_info_t *phl)
 	_os_strncpy(tx_handler->cb_name, tx_hdl_cb_name,
 		    (_os_strlen((u8*)tx_hdl_cb_name) > RTW_PHL_HANDLER_CB_NAME_LEN) ?
 			RTW_PHL_HANDLER_CB_NAME_LEN : _os_strlen((u8*)tx_hdl_cb_name));
-	#ifdef CONFIG_PHL_CPU_BALANCE_THREAD
-	tx_handler->os_handler.u.thread.en_assign_cpuid = _TRUE;
-	tx_handler->os_handler.u.thread.cpu_id = CPU_ID_TX_CB;
-	#endif /*CONFIG_PHL_CPU_BALANCE_THREAD*/
 #else
 	tx_handler->type = RTW_PHL_HANDLER_PRIO_LOW;
 #endif
@@ -1125,10 +1079,6 @@ static enum rtw_phl_status phl_register_trx_hdlr_sdio(struct phl_info_t *phl)
 	_os_strncpy(rx_handler->cb_name, rx_hdl_cb_name,
 		   (_os_strlen((u8*)rx_hdl_cb_name) > RTW_PHL_HANDLER_CB_NAME_LEN) ?
 			RTW_PHL_HANDLER_CB_NAME_LEN : _os_strlen((u8*)rx_hdl_cb_name));
-	#ifdef CONFIG_PHL_CPU_BALANCE_THREAD
-	rx_handler->os_handler.u.thread.en_assign_cpuid= _TRUE;
-	rx_handler->os_handler.u.thread.cpu_id = CPU_ID_RX_CB;
-	#endif /*CONFIG_PHL_CPU_BALANCE_THREAD*/
 #else
 	rx_handler->type = RTW_PHL_HANDLER_PRIO_LOW;
 #endif
@@ -1293,9 +1243,6 @@ static enum rtw_phl_status phl_trx_init_sdio(struct phl_info_t *phl_info)
 	void *drv = phl_to_drvpriv(phl_info);
 #ifdef SDIO_TX_THREAD
 	struct rtw_tx_buf_ring *tx_pool;
-#ifdef CONFIG_PHL_CPU_BALANCE_THREAD
-	_os_thread *pthread = &hci->tx_thrd;
-#endif /*CONFIG_PHL_CPU_BALANCE_THREAD*/
 #endif
 	struct rtw_tx_buf *txbuf;
 	struct rtw_rx_buf_ring *rx_pool;
@@ -1413,10 +1360,6 @@ static enum rtw_phl_status phl_trx_init_sdio(struct phl_info_t *phl_info)
 
 #ifdef SDIO_TX_THREAD
 		_os_sema_init(drv, &hci->tx_thrd_sema, 0);
-#ifdef CONFIG_PHL_CPU_BALANCE_THREAD
-		pthread->en_assign_cpuid = _TRUE;
-		pthread->cpu_id = CPU_ID_TX;
-#endif /*CONFIG_PHL_CPU_BALANCE_THREAD*/
 		if (RTW_PHL_STATUS_SUCCESS != _os_thread_init(drv, &hci->tx_thrd, phl_tx_sdio_thrd_hdl,
 				phl_info, "rtw_sdio_tx")) {
 			PHL_ERR("thread init rtw_sdio_tx fail.\n");
@@ -1476,6 +1419,9 @@ static enum rtw_phl_status phl_pltfm_tx_sdio(struct phl_info_t *phl, void *pkt)
 	u32 start;
 	enum rtw_hal_status res;
 
+#ifdef CONFIG_PHL_H2C_PKT_POOL_STATS_CHECK
+	phl_set_h2c_pkt_alloc_cnt(phl, h2c_pkt);
+#endif
 
 	dma_ch = rtw_hal_get_fwcmd_queue_idx(phl->hal);
 
@@ -1588,6 +1534,7 @@ static void phl_req_rx_stop_sdio(struct phl_info_t *phl)
 	_os_atomic_set(drv, &phl->phl_sw_rx_sts,
 		PHL_RX_STATUS_STOP_INPROGRESS);
 }
+
 
 static bool phl_is_tx_pause_sdio(struct phl_info_t *phl)
 {

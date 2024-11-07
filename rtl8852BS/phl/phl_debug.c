@@ -404,45 +404,104 @@ void rtw_phl_get_halmac_ver(char *buf, u16 buf_len)
 	rtw_hal_get_mac_version(buf, buf_len);
 }
 
-#ifdef CONFIG_PHL_DUMP_TRX_STATUS
-void rtw_phl_debug_trx(void *phl)
+void rtw_phl_update_io_dump_allow(void *phl, bool io_dump_allow)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-	struct rtw_phl_com_t *phl_com = phl_info->phl_com;
-	struct rtw_hal_com_t *hal_com = rtw_hal_get_halcom(phl_info->hal);
-	struct hal_mac_dbg_dump_cfg cfg = {0};
-	enum phl_band_idx band_idx = 0;
-	u8 reg = 0;
-	int i;
 
-	cfg.ss_dbg_0 = phl_com->dbg_ss_dbg_0;
-	cfg.ss_dbg_1 = phl_com->dbg_ss_dbg_1;
-	cfg.ss_dbg = (phl_com->dbg_mac_cfg & BIT0);
-	cfg.dle_dbg = (phl_com->dbg_mac_cfg & BIT1) >> 1;
-	cfg.dmac_dbg = (phl_com->dbg_mac_cfg & BIT2) >> 2;
-	cfg.cmac_dbg = (phl_com->dbg_mac_cfg & BIT3) >> 3;
-	cfg.mac_dbg_port = (phl_com->dbg_mac_cfg & BIT4) >> 4;
-	cfg.plersvd_dbg = (phl_com->dbg_mac_cfg & BIT5) >> 5;
-	cfg.tx_flow_dbg = (phl_com->dbg_mac_cfg & BIT6) >> 6;
-	phl_com->check_rx_int = (phl_com->dbg_mac_cfg & BIT7) >> 7;
+	if (io_dump_allow) {
+		SET_IO_DUMP_ALLOWED(phl_info->phl_com);
+	} else {
+		CLR_IO_DUMP_ALLOWED(phl_info->phl_com);
+	}
 
-	PHL_PRINT("%s =============>\n", __func__);
-	#ifdef CONFIG_RTW_DEBUG_CCCR
-	PHL_PRINT("%s, cccr dump\n ", __func__);
-	rtw_hal_dbg_cccr_dump(hal_com);
-	#endif /*CONFIG_RTW_DEBUG_CCCR*/
-
-	PHL_PRINT("%s, mac_dbg_status_dump\n", __func__);
-	rtw_hal_dbg_status_dump(phl_info->hal, &cfg);
-
-	#ifdef PHL_PLATFORM_LINUX
-	PHL_PRINT("%s, mac reg dump\n", __func__);
-	rtw_phl_mac_reg_dump(NULL, phl);
-	#endif
-
-	PHL_PRINT("%s, dump register\n", __func__);
-	RTW_DUMP_HAL_CR(phl_info, MSG_EVT_DBG_TX_DUMP, band_idx);
-
-	PHL_PRINT("%s <=============\n", __func__);
+	PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "[DBG] update io_dump_allow = %d, dump_cfg = 0x%x \n",
+				(IS_IO_DUMP_ALLOWED(phl_info->phl_com) > 0),
+				phl_info->phl_com->dbg_cfg.dump_cfg);
 }
-#endif /*CONFIG_PHL_DUMP_TRX_STATUS*/
+
+void rtw_phl_update_fw_log_dump_allow(void *phl, bool fw_log_dump_allow)
+{
+	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+	struct rtw_phl_dbg_cfg_t *dbg_cfg = &phl_info->phl_com->dbg_cfg;
+
+	if (fw_log_dump_allow) {
+		SET_FW_LOG_DUMP_ALLOWED(phl_info->phl_com);
+		rtw_hal_set_fw_log_lvl(phl_info->hal, dbg_cfg->fw_log_info.level);
+	} else {
+		CLR_FW_LOG_DUMP_ALLOWED(phl_info->phl_com);
+		rtw_hal_set_fw_log_lvl(phl_info->hal, FL_LV_OFF);
+	}
+
+	PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "[DBG] update fw_log_dump_allow = %d, dump_cfg = 0x%x\n",
+				(IS_FW_LOG_DUMP_ALLOWED(phl_info->phl_com) > 0),
+				phl_info->phl_com->dbg_cfg.dump_cfg);
+}
+
+#ifdef DBG_MONITOR_TIME
+void phl_fun_monitor_start(u32 *start_t, bool show_caller, const char *caller)
+{
+	*start_t = _os_get_cur_time_ms();
+	if (show_caller)
+		PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, ">> %s:\n", caller);
+}
+
+void phl_fun_monitor_end(struct rtw_phl_com_t *phl_com,
+				   u32 *start_t, enum phl_time_flags flag, const char *caller)
+{
+	u32 pass_t = phl_get_passing_time_ms(*start_t);
+
+	if (flag == TIME_HAL_SET_CHAN || flag == TIME_HAL_RFK) {
+		u32 tmp_t = phl_com->func_latency[flag];
+
+		if (pass_t > tmp_t)
+			phl_com->func_latency[flag] = pass_t;
+	} else {
+		phl_com->func_latency[flag] = pass_t;
+	}
+
+	PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, " << %s: Process time(ms): %d\n",
+		caller, pass_t);
+}
+void phl_dump_func_latency(struct rtw_phl_com_t *phl_com)
+{
+	PHL_INFO("========== PHL FUNC LATENCY ==========\n");
+	PHL_INFO("\t rtw_phl_init : %d ms\n", phl_com->func_latency[TIME_PHL_INIT]);
+
+	PHL_INFO("\t rtw_phl_preload : %d ms\n", phl_com->func_latency[TIME_PHL_PRELOAD]);
+	PHL_INFO("\t\t hal_fast_start : %d ms\n", phl_com->func_latency[TIME_HAL_FAST_START]);
+	PHL_INFO("\t\t hal_get_efuse : %d ms\n", phl_com->func_latency[TIME_HAL_GET_EFUSE]);
+	PHL_INFO("\t\t hal_fast_stop : %d ms\n", phl_com->func_latency[TIME_HAL_FAST_STOP]);
+
+	PHL_INFO("\t rtw_phl_star : %d ms\n", phl_com->func_latency[TIME_PHL_START]);
+	PHL_INFO("\t\t rtw_hal_star : %d ms\n", phl_com->func_latency[TIME_HAL_START]);
+	PHL_INFO("\t\t\t rtw_hal_mac_hal_init : %d ms\n", phl_com->func_latency[TIME_HAL_MAC_HAL_INIT]);
+	PHL_INFO("\t\t\t rtw_hal_efuse_process : %d ms\n", phl_com->func_latency[TIME_HAL_EFUSE_PROC]);
+	PHL_INFO("\t\t\t rtw_hal_init_bb_early_init : %d ms\n", phl_com->func_latency[TIME_HAL_INIT_BB_REG1]);
+	PHL_INFO("\t\t\t rtw_hal_init_bb_reg : %d ms\n", phl_com->func_latency[TIME_HAL_INIT_BB_REG2]);
+	PHL_INFO("\t\t\t rtw_hal_init_rf_reg : %d ms\n", phl_com->func_latency[TIME_HAL_INIT_RF_REG]);
+	PHL_INFO("\t\t\t rtw_hal_btc_init_coex_cfg_ntfy : %d ms\n", phl_com->func_latency[TIME_HAL_INIT_BTC]);
+	PHL_INFO("\t\t\t rtw_hal_bb_dm_init : %d ms\n", phl_com->func_latency[TIME_HAL_BB_DM_INIT]);
+	PHL_INFO("\t\t\t rtw_hal_rf_dm_init : %d ms\n", phl_com->func_latency[TIME_HAL_RF_DM_INIT]);
+
+	PHL_INFO("\t\t rtw_hal_set_ch_bw : %d ms\n", phl_com->func_latency[TIME_HAL_SET_CHAN]);
+	PHL_INFO("\t\t rtw_hal_rf_chl_rfk_trigger : %d ms\n", phl_com->func_latency[TIME_HAL_RFK]);
+
+	PHL_INFO("\t rtw_phl_wifi_role_alloc : %d ms\n", phl_com->func_latency[TIME_PHL_ROLE_ALLOC]);
+	PHL_INFO("\t rtw_phl_wifi_role_free : %d ms\n", phl_com->func_latency[TIME_PHL_ROLE_FREE]);
+
+	PHL_INFO("\t rtw_phl_suspend : %d ms\n", phl_com->func_latency[TIME_PHL_SUSPEND]);
+	PHL_INFO("\t\t phl_wow_start : %d ms\n", phl_com->func_latency[TIME_PHL_WOW_START]);
+	PHL_INFO("\t\t phl_cmd_role_suspend : %d ms\n", phl_com->func_latency[TIME_PHL_ROLE_SUSPEND]);
+
+	PHL_INFO("\t rtw_phl_resume : %d ms\n", phl_com->func_latency[TIME_PHL_RESUME]);
+	PHL_INFO("\t\t phl_wow_stop : %d ms\n", phl_com->func_latency[TIME_PHL_WOW_STOP]);
+	PHL_INFO("\t\t phl_cmd_role_recover : %d ms\n", phl_com->func_latency[TIME_PHL_ROLE_RECOVER]);
+
+
+	PHL_INFO("\t rtw_phl_stop : %d ms\n", phl_com->func_latency[TIME_PHL_STOP]);
+	PHL_INFO("\t rtw_phl_deinit : %d ms\n", phl_com->func_latency[TIME_PHL_DEINIT]);
+
+	PHL_INFO("======================================\n");
+}
+#endif /* DBG_MONITOR_TIME */
+

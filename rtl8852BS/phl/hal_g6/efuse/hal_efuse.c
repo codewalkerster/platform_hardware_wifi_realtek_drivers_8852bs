@@ -410,18 +410,10 @@ enum rtw_hal_status rtw_efuse_get_usage(void *efuse, u32 *usage)
 	return status;
 }
 
-enum rtw_hal_status rtw_efuse_shadow2buf(void *efuse, u8 *destbuf, u16 buflen, u8 is_limit)
+enum rtw_hal_status rtw_efuse_shadow2buf(void *efuse, u8 *destbuf, u16 buflen)
 {
 	enum rtw_hal_status status = RTW_HAL_STATUS_SUCCESS;
 	struct efuse_t *efuse_info = efuse;
-	u16 offset;
-
-	if (efuse_info->efuse_a_die_size != 0 && is_limit) {
-		for (offset = efuse_info->a_die_start_offset;
-			offset < (efuse_info->a_die_start_offset + (u32)efuse_info->efuse_a_die_size); offset++)
-			efuse_info->shadow_map[offset] =
-						efuse_info->shadow_map[offset + efuse_info->hci_to_a_die_offset];
-	}
 
 	_os_mem_cpy(efuse_info->hal_com->drv_priv, (void *)destbuf,
 				(void *)efuse_info->shadow_map , buflen);
@@ -852,7 +844,7 @@ u32 rtw_efuse_init(struct rtw_phl_com_t *phl_com,
 
 	if(efuse_info == NULL) {
 		hal_status = RTW_HAL_STATUS_RESOURCE;
-		goto error_efuse_init;
+		return hal_status;
 	}
 
 	/* Allocate shadow map memory */
@@ -1010,7 +1002,6 @@ error_efuse_mask_init:
 error_efuse_shadow_init:
 	_os_mem_free(hal_com->drv_priv, efuse_info, sizeof(struct efuse_t));
 
-error_efuse_init:
 	return hal_status;
 }
 
@@ -1051,10 +1042,8 @@ void rtw_efuse_deinit(struct rtw_hal_com_t *hal_com, void *efuse)
 		efuse_info->shadow_map = NULL;
 	}
 
-	if (efuse_info) {
-		_os_mem_free(hal_com->drv_priv, efuse_info, sizeof(struct efuse_t));
-		efuse_info = NULL;
-	}
+	_os_mem_free(hal_com->drv_priv, efuse_info, sizeof(struct efuse_t));
+	efuse_info = NULL;
 }
 
 /* BT EFUSE API */
@@ -1497,7 +1486,7 @@ enum rtw_hal_status rtw_efuse_renew(void *efuse, u8 type)
 
 	if (type == HAL_MP_EFUSE_WIFI) {
 		rtw_hal_bb_get_efuse_init(efuse_info->hal_com);
-		rtw_hal_rf_get_efuse_ex(efuse_info->hal_com, HW_PHY_MAX);
+		rtw_hal_rf_get_efuse_ex(efuse_info->hal_com, HW_PHY_0);
 		PHL_INFO("%s: hal efuse renew done\n", __FUNCTION__);
 
 	} else if (type == HAL_MP_EFUSE_BT) {

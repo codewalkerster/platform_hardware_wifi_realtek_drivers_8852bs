@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2019 Realtek Corporation.
+ * Copyright(c) 2019 - 2023 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -15,10 +15,12 @@
 #define _PHL_INIT_C_
 #include "phl_headers.h"
 
+#ifdef CONFIG_PHL_CHSWOFLD
 static void phl_chsw_ofld_info_init(struct rtw_phl_com_t *phl_com)
 {
 	rtw_phl_set_chsw_ofld_info(phl_com, false, false, false);
 }
+#endif
 
 void _phl_com_init_rssi_stat(struct rtw_phl_com_t *phl_com)
 {
@@ -111,6 +113,7 @@ void _phl_com_init_ppdu_sts(struct rtw_phl_com_t *phl_com)
 		for (i = 0; i < PHL_MAX_PPDU_CNT; i++) {
 			pq_init(phl_com->drv_priv,
 				&(phl_com->ppdu_sts_info.sts_ent[j][i].frames));
+			phl_com->ppdu_sts_info.sts_ent[j][i].frame_type = RTW_FRAME_TYPE_MAX;
 		}
 	}
 #endif
@@ -343,6 +346,25 @@ static void phl_txpwr_regu_info_deinit(struct phl_info_t *phl_info)
 	}
 }
 
+void phl_dbg_cfg_init(struct rtw_phl_com_t* phl_com)
+{
+#ifdef DBG_DUMP_TX_COUNTER
+	phl_com->dbg_cfg.dbg_dump_tx = false;
+	phl_com->dbg_cfg.dbg_dump_tx_bidx = 0;
+#endif
+	phl_com->dbg_cfg.bb_cfg.bb_init_ctrl_opt = 0;
+	phl_com->dbg_cfg.bb_cfg.bb_init_ctrl_val = 0;
+
+	phl_com->dbg_cfg.fw_log_info.level = MAC_AX_FL_LV_LOUD;
+	phl_com->dbg_cfg.fw_log_info.output = MAC_AX_FL_LV_C2H;
+	phl_com->dbg_cfg.fw_log_info.comp = MAC_AX_FL_COMP_TASK;
+	phl_com->dbg_cfg.fw_log_info.comp_ext = 0;
+
+	phl_com->dbg_cfg.dump_cfg = DUMP_CFG_IO_ALLOW | DUMP_CFG_FW_LOG_ALLOW;
+
+	phl_com->dbg_cfg.mac_cfg.mac_wow_fw_dbg = 1;
+}
+
 static enum rtw_phl_status phl_com_init(void *drv_priv,
 					struct phl_info_t *phl_info,
 					struct rtw_ic_info *ic_info)
@@ -363,11 +385,14 @@ static enum rtw_phl_status phl_com_init(void *drv_priv,
 	phl_info->phl_com->edcca_mode = RTW_EDCCA_NORMAL;
 	phl_info->phl_com->tpe_info.valid_tpe_cnt = 0;
 
+	phl_dbg_cfg_init(phl_info->phl_com);
 	phl_sw_cap_init(phl_info->phl_com);
 
 	_os_spinlock_init(drv_priv, &phl_info->phl_com->evt_info.evt_lock);
 
+#ifdef CONFIG_PHL_CHSWOFLD
 	phl_chsw_ofld_info_init(phl_info->phl_com);
+#endif
 
 	phl_fw_init(phl_info);
 	#ifdef CONFIG_PHL_CHANNEL_INFO
@@ -421,7 +446,7 @@ static void phl_com_deinit(struct phl_info_t *phl_info,
 
 	/* deinit variable or stop mechanism. */
 	if (phl_com) {
-		phl_sw_cap_deinit(phl_info->phl_com);
+		phl_sw_cap_deinit(phl_info->phl_com, true);
 		_os_spinlock_free(drv_priv, &phl_com->evt_info.evt_lock);
 		_phl_com_deinit_rssi_stat(phl_info->phl_com);
 		_phl_com_deinit_ppdu_sts(phl_info->phl_com);
@@ -543,6 +568,10 @@ static enum rtw_phl_status _phl_hci_ops_check(struct phl_info_t *phl_info)
 	}
 	if (!trx_ops->recycle_busy_h2c) {
 		phl_ops_error_msg("recycle_busy_h2c");
+		status = RTW_PHL_STATUS_FAILURE;
+	}
+	if (!trx_ops->read_hw_rx) {
+		phl_ops_error_msg("read_hw_rx");
 		status = RTW_PHL_STATUS_FAILURE;
 	}
 #endif
@@ -757,12 +786,13 @@ static enum rtw_phl_status phl_module_init(struct phl_info_t *phl_info)
 		goto wow_init_fail;
 	}
 
+#ifdef CONFIG_PHL_PKTOFLD
 	phl_status = phl_pkt_ofld_init(phl_info);
 	if (phl_status != RTW_PHL_STATUS_SUCCESS) {
 		PHL_ERR("phl_pkt_ofld_init failed\n");
 		goto pkt_ofld_init_fail;
 	}
-
+#endif
 	if (!phl_test_module_init(phl_info)) {
 		PHL_ERR("phl_test_module_init failed\n");
 		phl_status = RTW_PHL_STATUS_FAILURE;
@@ -805,8 +835,11 @@ error_disp_eng_init:
 error_p2pps_init:
 	phl_test_module_deinit(phl_info->phl_com);
 error_test_module_init:
+#ifdef CONFIG_PHL_PKTOFLD
 	phl_pkt_ofld_deinit(phl_info);
 pkt_ofld_init_fail:
+#endif
+
 	phl_wow_mdl_deinit(phl_info);
 wow_init_fail:
 	phl_msg_hub_deinit(phl_info);
@@ -819,7 +852,9 @@ static void phl_module_deinit(struct phl_info_t *phl_info)
 	phl_ecsa_ctrl_deinit(phl_info);
 	phl_disp_eng_deinit(phl_info);
 	phl_test_module_deinit(phl_info->phl_com);
+#ifdef CONFIG_PHL_PKTOFLD
 	phl_pkt_ofld_deinit(phl_info);
+#endif
 	phl_wow_mdl_deinit(phl_info);
 	phl_msg_hub_deinit(phl_info);
 	phl_p2pps_deinit(phl_info);
@@ -889,45 +924,18 @@ struct rtw_phl_com_t *rtw_phl_get_com(void *phl)
 	return phl_info->phl_com;
 }
 
-static void phl_regulation_init(void *drv_priv, void *phl)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-	struct rtw_regulation *rg = NULL;
-
-	if (!drv_priv || !phl)
-		return;
-
-	rg = &phl_info->regulation;
-
-	_os_spinlock_init(drv_priv, &rg->lock);
-	rg->init = 1;
-	rg->domain.code = INVALID_DOMAIN_CODE;
-	rg->domain_6g.code = INVALID_DOMAIN_CODE;
-	rg->tpo = TPO_NA;
-	phl_regu_policy_init(drv_priv, phl);
-}
-
-static void phl_regulation_deinit(void *drv_priv, void *phl)
-{
-	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-	struct rtw_regulation *rg = NULL;
-
-	if (!drv_priv || !phl)
-		return;
-
-	rg = &phl_info->regulation;
-
-	_os_spinlock_free(drv_priv, &rg->lock);
-}
-
 enum rtw_phl_status rtw_phl_init(void *drv_priv, void **phl,
 					struct rtw_ic_info *ic_info)
 {
 	struct phl_info_t *phl_info = NULL;
 	enum rtw_phl_status phl_status = RTW_PHL_STATUS_FAILURE;
 	enum rtw_hal_status hal_status = RTW_HAL_STATUS_FAILURE;
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
 
-	FUNCIN();
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
+
 	phl_info = _os_mem_alloc(drv_priv, sizeof(struct phl_info_t));
 	if (phl_info == NULL) {
 		phl_status = RTW_PHL_STATUS_RESOURCE;
@@ -936,8 +944,6 @@ enum rtw_phl_status rtw_phl_init(void *drv_priv, void **phl,
 	}
 	_os_mem_set(drv_priv, phl_info, 0, sizeof(struct phl_info_t));
 	*phl = phl_info;
-
-	phl_regulation_init(drv_priv, phl_info);
 
 	phl_status = phl_com_init(drv_priv, phl_info, ic_info);
 	if (phl_status != RTW_PHL_STATUS_SUCCESS) {
@@ -984,6 +990,10 @@ enum rtw_phl_status rtw_phl_init(void *drv_priv, void **phl,
 		goto error_phl_acs_info_init;
 	}
 #endif
+	if (false == phl_check_submodule_vers()) {
+		phl_status = RTW_PHL_STATUS_HAL_INIT_FAILURE;
+		goto error_vers_check;
+	}
 
 	hal_status = rtw_hal_init(drv_priv, phl_info->phl_com,
 					&(phl_info->hal), ic_info->ic_id);
@@ -1025,6 +1035,14 @@ enum rtw_phl_status rtw_phl_init(void *drv_priv, void **phl,
 		goto error_wifi_role_ctrl_init;
 	}
 
+#ifdef CONFIG_QOS_MG
+	phl_status = phl_qm_init(phl_info);
+	if (phl_status != RTW_PHL_STATUS_SUCCESS) {
+		PHL_ERR("QM init failed\n");
+		goto error_qm_init;
+	}
+#endif /* CONFIG_QOS_MG */
+
 	/* init modules */
 	phl_status = phl_module_init(phl_info);
 	if (phl_status != RTW_PHL_STATUS_SUCCESS) {
@@ -1054,7 +1072,9 @@ enum rtw_phl_status rtw_phl_init(void *drv_priv, void **phl,
 		goto error_mld_ctrl_init;
 	}
 
-	FUNCOUT();
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_INIT);
+#endif /* DBG_MONITOR_TIME */
 
 	return phl_status;
 
@@ -1068,17 +1088,22 @@ error_module_init:
 	phl_mr_ctrl_deinit(phl_info);
 error_wifi_role_ctrl_init:
 	phl_var_deinit(phl_info);
+#ifdef CONFIG_QOS_MG
+error_qm_init:
+	phl_qm_deinit(phl_info);
+#endif /* CONFIG_QOS_MG */
 error_phl_var_init:
 error_hal_var_init:
 error_hal_read_chip_info:
 	rtw_hal_deinit(phl_info->phl_com, phl_info->hal);
+error_vers_check:
 error_hal_init:
 #ifdef CONFIG_RTW_ACS
 	phl_acs_info_deinit(phl_info);
 error_phl_acs_info_init:
 #endif
 error_phl_twt_init:
-	phl_twt_deinit(phl);
+	phl_twt_deinit(phl_info);
 #ifdef CONFIG_FSM
 	phl_fsm_module_deinit(phl_info);
 error_fsm_module_init:
@@ -1092,7 +1117,6 @@ error_hci_init:
 	phl_com_deinit(phl_info, phl_info->phl_com);
 error_phl_com_mem:
 	if (phl_info) {
-		phl_regulation_deinit(drv_priv, phl_info);
 		_os_mem_free(drv_priv, phl_info, sizeof(struct phl_info_t));
 		*phl = phl_info = NULL;
 	}
@@ -1103,31 +1127,49 @@ error_phl_mem:
 void rtw_phl_deinit(void *phl)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
-	void *drv_priv = phl_to_drvpriv(phl_info);
+	void *drv_priv = NULL;
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
+#endif /* DBG_MONITOR_TIME */
 
-	if (phl_info) {
-		#ifdef CONFIG_RTW_ACS
-		phl_acs_info_deinit(phl_info);
-		#endif
-		phl_twt_deinit(phl);
-		phl_mld_ctrl_deinit(phl_info);
-		phl_stainfo_ctrl_deinit(phl_info);
-		phl_macid_ctrl_deinit(phl_info);
-		/*deinit mr_ctrl, wifi_role[]*/
-		phl_module_deinit(phl_info);
-		phl_mr_ctrl_deinit(phl_info);
-		rtw_hal_deinit(phl_info->phl_com, phl_info->hal);
-		phl_var_deinit(phl_info);
-		#ifdef CONFIG_FSM
-		phl_fsm_module_deinit(phl_info);
-		phl_fsm_deinit(phl_info);
-		#endif
-		phl_hci_deinit(phl_info, phl_info->hci);
-		phl_com_deinit(phl_info, phl_info->phl_com);
-		phl_regulation_deinit(drv_priv, phl_info);
-		_os_mem_free(drv_priv, phl_info,
-					sizeof(struct phl_info_t));
+	if (phl_info == NULL) {
+		_os_warn_on(1);
+		return;
 	}
+
+#ifdef DBG_MONITOR_TIME
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
+
+	drv_priv = phl_to_drvpriv(phl_info);
+	#ifdef CONFIG_RTW_ACS
+	phl_acs_info_deinit(phl_info);
+	#endif
+	phl_twt_deinit(phl);
+	phl_mld_ctrl_deinit(phl_info);
+	phl_stainfo_ctrl_deinit(phl_info);
+	phl_macid_ctrl_deinit(phl_info);
+	/*deinit mr_ctrl, wifi_role[]*/
+	phl_module_deinit(phl_info);
+	phl_mr_ctrl_deinit(phl_info);
+#ifdef CONFIG_QOS_MG
+	phl_qm_deinit(phl_info);
+#endif /* CONFIG_QOS_MG */
+	rtw_hal_deinit(phl_info->phl_com, phl_info->hal);
+	phl_var_deinit(phl_info);
+	#ifdef CONFIG_FSM
+	phl_fsm_module_deinit(phl_info);
+	phl_fsm_deinit(phl_info);
+	#endif
+	phl_hci_deinit(phl_info, phl_info->hci);
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_DEINIT);
+	phl_dump_func_latency(phl_info->phl_com);
+#endif /* DBG_MONITOR_TIME */
+
+	phl_com_deinit(phl_info, phl_info->phl_com);
+	_os_mem_free(drv_priv, phl_info,
+				sizeof(struct phl_info_t));
 }
 
 enum rtw_phl_status
@@ -1142,11 +1184,13 @@ rtw_phl_trx_alloc(void *phl)
 		goto error_datapath;
 	}
 
+#ifndef RTW_MP_INIT_IN_MP_START
 	phl_status = phl_trx_test_init(phl);
 	if (phl_status != RTW_PHL_STATUS_SUCCESS) {
 		PHL_ERR("phl_trx_test_init failed\n");
 		goto error_trx_test;
 	}
+#endif
 
 	return phl_status;
 
@@ -1166,7 +1210,9 @@ void
 rtw_phl_trx_free_sw_rsc(void *phl)
 {
 	phl_trx_free_sw_rsc(phl);
+#ifndef RTW_MP_INIT_IN_MP_START
 	phl_trx_test_deinit(phl);
+#endif
 }
 
 void
@@ -1287,12 +1333,13 @@ rtw_phl_free_bcn_entry(void *phl,
 enum rtw_phl_status
 phl_beacon_stop(struct phl_info_t *phl_info,
                 struct rtw_wifi_role_link_t *rlink,
+                enum rlink_bcn_stop_rson reason,
                 u8 stop)
 {
 	enum rtw_phl_status pstatus = RTW_PHL_STATUS_SUCCESS;
 	enum rtw_hal_status hstatus = RTW_HAL_STATUS_SUCCESS;
 
-	hstatus = rtw_hal_beacon_stop(phl_info->hal, rlink, stop);
+	hstatus = rtw_hal_beacon_stop(phl_info->hal, rlink, reason, stop);
 	if (hstatus != RTW_HAL_STATUS_SUCCESS)
 		pstatus = RTW_PHL_STATUS_FAILURE;
 
@@ -1427,6 +1474,7 @@ _exit:
 
 struct stop_bcn_param {
 	struct rtw_wifi_role_link_t *rlink;
+	enum rlink_bcn_stop_rson reason;
 	u8 stop;
 };
 
@@ -1435,7 +1483,8 @@ phl_cmd_stop_bcn_hdl(struct phl_info_t *phl_info, u8 *param)
 {
 	struct stop_bcn_param *bcn_param = (struct stop_bcn_param *)param;
 
-	return phl_beacon_stop(phl_info, bcn_param->rlink, bcn_param->stop);
+	return phl_beacon_stop(phl_info, bcn_param->rlink,
+		bcn_param->reason, bcn_param->stop);
 }
 
 static void _phl_stop_bcn_done(void *drv_priv, u8 *buf, u32 buf_len,
@@ -1448,9 +1497,10 @@ static void _phl_stop_bcn_done(void *drv_priv, u8 *buf, u32 buf_len,
 	}
 }
 
-enum rtw_phl_status
-rtw_phl_cmd_stop_beacon(void *phl,
+static enum rtw_phl_status
+_rtw_phl_cmd_stop_beacon(void *phl,
                         struct rtw_wifi_role_link_t *rlink,
+                        enum rlink_bcn_stop_rson reason,
                         u8 stop,
                         enum phl_cmd_type cmd_type,
                         u32 cmd_timeout)
@@ -1463,7 +1513,7 @@ rtw_phl_cmd_stop_beacon(void *phl,
 	u32 param_len;
 
 	if (cmd_type == PHL_CMD_DIRECTLY) {
-		psts = phl_beacon_stop(phl_info, rlink, stop);
+		psts = phl_beacon_stop(phl_info, rlink, reason, stop);
 		goto _exit;
 	}
 
@@ -1476,6 +1526,7 @@ rtw_phl_cmd_stop_beacon(void *phl,
 
 	param->rlink = rlink;
 	param->stop = stop;
+	param->reason = reason;
 
 	psts = phl_cmd_enqueue(phl_info,
 	                       hw_band,
@@ -1498,16 +1549,17 @@ _exit:
 	return psts;
 }
 #else /*for FSM*/
-enum rtw_phl_status
-rtw_phl_cmd_stop_beacon(void *phl,
+static enum rtw_phl_status
+_rtw_phl_cmd_stop_beacon(void *phl,
                         struct rtw_wifi_role_link_t *rlink,
+                        enum rlink_bcn_stop_rson reason,
                         u8 stop,
                         enum phl_cmd_type cmd_type,
                         u32 cmd_timeout)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
 
-	return phl_beacon_stop(phl_info, rlink, stop);
+	return phl_beacon_stop(phl_info, rlink, reason, stop);
 }
 
 enum rtw_phl_status
@@ -1522,6 +1574,30 @@ rtw_phl_cmd_issue_beacon(void *phl,
 	return phl_issue_beacon(phl_info, bcn_cmn);
 }
 #endif /*CONFIG_CMD_DISP*/
+
+enum rtw_phl_status
+rtw_phl_cmd_stop_beacon(void *phl,
+                        struct rtw_wifi_role_link_t *rlink,
+                        u8 stop,
+                        enum phl_cmd_type cmd_type,
+                        u32 cmd_timeout)
+{
+	return _rtw_phl_cmd_stop_beacon(phl, rlink,
+		RLINK_BCN_STOP_RSON_DEFAULT,
+		stop, cmd_type, cmd_timeout);
+}
+
+enum rtw_phl_status
+rtw_phl_cmd_core_stop_beacon(void *phl,
+                        struct rtw_wifi_role_link_t *rlink,
+                        u8 stop,
+                        enum phl_cmd_type cmd_type,
+                        u32 cmd_timeout)
+{
+	return _rtw_phl_cmd_stop_beacon(phl, rlink,
+		RLINK_BCN_STOP_RSON_CORE,
+		stop, cmd_type, cmd_timeout);
+}
 #endif /*RTW_PHL_BCN*/
 
 void rtw_phl_cap_pre_config(void *phl)
@@ -1537,18 +1613,24 @@ enum rtw_phl_status rtw_phl_preload(void *phl)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
 	enum rtw_hal_status hal_status = RTW_HAL_STATUS_SUCCESS;
+	enum rtw_phl_status phl_sts;
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
 
-	FUNCIN();
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
 
 	hal_status = rtw_hal_preload(phl_info->phl_com, phl_info->hal);
 
 	phl_datapath_reset(phl_info, PHL_CTRL_TX | PHL_CTRL_RX |
 	                   PHL_CTRL_IN_PIPE | PHL_CTRL_OUT_PIPE);
 
-	if (hal_status != RTW_HAL_STATUS_SUCCESS)
-		return RTW_PHL_STATUS_FAILURE;
-
-	return RTW_PHL_STATUS_SUCCESS;
+	phl_sts = (hal_status != RTW_HAL_STATUS_SUCCESS)
+			? RTW_PHL_STATUS_FAILURE : RTW_PHL_STATUS_SUCCESS;
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_PRELOAD);
+#endif
+	return phl_sts;
 }
 
 enum rtw_phl_status rtw_phl_start(void *phl)
@@ -1562,14 +1644,27 @@ enum rtw_phl_status rtw_phl_start(void *phl)
 #ifdef CONFIG_POWER_SAVE
 	struct rtw_ps_cap_t *ps_cap = _get_ps_sw_cap(phl_info);
 #endif
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
+
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
 
 #ifdef CONFIG_POWER_SAVE
-	if (ps_cap->init_rf_state == RTW_RF_OFF)
+	if (ps_cap->init_rf_state == RTW_RF_OFF) {
 		PHL_INFO("%s: init_rf_state is RTW_RF_OFF\n", __func__);
-	else
+#ifdef CONFIG_PCI_HCI
+		if (TEST_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_RESUMING))
+			rtw_phl_preload(phl_info);
+#endif /* CONFIG_PCI_HCI */
+#ifdef CONFIG_BTCOEX
+		rtw_hal_btc_radio_state_ntfy(phl_info->hal, BTC_RFCTRL_WL_OFF);
+#endif
+	} else
 #endif /* CONFIG_POWER_SAVE */
+	{
 		hal_status = rtw_hal_start(phl_info->phl_com, phl_info->hal);
-
+	}
 
 	if (hal_status == RTW_HAL_STATUS_MAC_INIT_FAILURE) {
 		phl_status = RTW_PHL_STATUS_HAL_INIT_FAILURE;
@@ -1587,11 +1682,6 @@ enum rtw_phl_status rtw_phl_start(void *phl)
 		phl_status = RTW_PHL_STATUS_HAL_INIT_FAILURE;
 		goto error_hal_start;
 	}
-
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-	/* if no need keep para buf, phl_com->dev_sw_cap->keep_para_info = false*/
-	rtw_phl_init_free_para_buf(phl_info->phl_com);
-#endif
 
 	/* start modules */
 	phl_status = phl_module_start(phl_info);
@@ -1623,14 +1713,16 @@ enum rtw_phl_status rtw_phl_start(void *phl)
 	}
 #endif /* CONFIG_POWER_SAVE */
 
-	phl_info->phl_com->dev_state = RTW_DEV_WORKING;
+	SET_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_WORKING);
 
 #ifdef PHL_RXSC_AMPDU
 	phl_info->phl_com->rxsc_entry.cached_rx_macid = PHL_MACID_MAX_NUM;
 #endif
 
 	phl_status = RTW_PHL_STATUS_SUCCESS;
-
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_START);
+#endif
 	return phl_status;
 
 error_phl_datapath_start_sw:
@@ -1703,6 +1795,11 @@ static enum rtw_phl_status _phl_cmd_send_msg_phy_on(struct phl_info_t *phl_info)
 void rtw_phl_stop(void *phl)
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
+
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
 
 	PHL_INFO("%s\n", __func__);
 
@@ -1726,86 +1823,142 @@ void rtw_phl_stop(void *phl)
 
 	phl_free_deferred_tx_ring(phl_info);
 
-	phl_info->phl_com->dev_state = 0;
+	CLEAR_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_WORKING);
+
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_STOP);
+#endif
+}
+
+static bool _need_wow_dbg_dump(struct phl_wow_info *wow_info, u8 init)
+{
+	struct phl_info_t *phl_info = wow_info->phl_info;
+	struct rtw_phl_com_t *phl_com = phl_info->phl_com;
+
+	if (init == true) {
+		if (wow_info->err.init == 0)
+			return false;
+	} else {
+		if (wow_info->err.deinit == 0)
+			return false;
+	}
+
+	if (!IS_IO_DUMP_ALLOWED(phl_com))
+		return false;
+
+	if (phl_com->dbg_cfg.mac_cfg.mac_wow_fw_dbg == 0)
+		return false;
+
+	return true;
 }
 
 enum rtw_phl_status phl_wow_start(struct phl_info_t *phl_info, struct rtw_phl_stainfo_t *sta)
 {
 #ifdef CONFIG_WOWLAN
 	enum rtw_phl_status pstatus = RTW_PHL_STATUS_FAILURE;
+#ifdef CONFIG_WOW_WITH_SER
 	enum rtw_hal_status hstatus = RTW_HAL_STATUS_FAILURE;
+#endif
 	struct phl_wow_info *wow_info = phl_to_wow_info(phl_info);
-
 #ifdef CONFIG_SYNC_INTERRUPT
 	struct rtw_phl_evt_ops *evt_ops = &phl_info->phl_com->evt_ops;
 #endif /* CONFIG_SYNC_INTERRUPT */
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
 
-	/*
-	 * How to do wow on MLD
-	 */
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
+
 	PHL_TRACE(COMP_PHL_WOW, _PHL_INFO_, "[wow] %s enter with sta state(%d)\n.", __func__, sta->wrole->mstate);
 
 	phl_wow_decide_op_mode(wow_info, sta);
 
 	if (wow_info->op_mode == RTW_WOW_OP_PWR_DOWN) {
 		phl_cmd_role_suspend(phl_info, PHL_ROLE_SUSPEND_RSN_DEV_SUSP);
+		pstatus = phl_cmd_set_wowlan(wow_info, true, false);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_SET_WOWLAN);
+		}
 		rtw_phl_stop(phl_info);
-		/* since control path stopped after rtw_phl_stop,
-		   below action don't have to migrate to general module */
-		hstatus = rtw_hal_set_wowlan(phl_info->phl_com, phl_info->hal, true);
-		if (RTW_HAL_STATUS_SUCCESS != hstatus)
-			PHL_WARN("[wow] rtw_hal_set_wowlan failed, status(%u)\n", hstatus);
 		pstatus = RTW_PHL_STATUS_SUCCESS;
 	} else {
 		/* stop all active features */
 		#ifdef CONFIG_WOW_WITH_SER
-		rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, false);
+		hstatus = rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, false);
+		if (RTW_HAL_STATUS_SUCCESS != hstatus)
+			SET_WOW_INIT_ERR(wow_info, WOW_SER_CTRL);
 		#endif
 		phl_cmd_role_suspend(phl_info, PHL_ROLE_SUSPEND_RSN_WOW);
+
+		pstatus = phl_cmd_set_wowlan(wow_info, true, false);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_SET_WOWLAN);
+		}
+
 		pstatus = phl_module_stop(phl_info);
 		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
 			PHL_ERR("[wow] phl_module_stop failed.\n");
 			goto end;
 		}
 
-		hstatus = rtw_hal_set_wowlan(phl_info->phl_com, phl_info->hal, true);
-		if (RTW_HAL_STATUS_SUCCESS != hstatus)
-			PHL_WARN("[wow] rtw_hal_set_wowlan failed, status(%u)\n", hstatus);
 		pstatus = phl_wow_init_precfg(wow_info);
 		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_INIT_PRECONFIG);
 			PHL_ERR("[wow] phl_wow_init_precfg failed.\n");
 			goto end;
 		}
 
 		pstatus = phl_wow_init(wow_info);
-		if (RTW_PHL_STATUS_SUCCESS != pstatus)
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_INIT);
 			goto end;
+		}
 
 		pstatus = phl_wow_func_en(wow_info);
-		if (RTW_PHL_STATUS_SUCCESS != pstatus)
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_FUNC_EN);
 			goto end;
+		}
 #ifdef CONFIG_POWER_SAVE
 		/* power saving */
-		phl_wow_ps_proto_cfg(wow_info, true);
+		pstatus = phl_wow_ps_proto_cfg(wow_info, true);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_PS_PROTO_CFG);
+			goto end;
+		}
 
+		phl_wow_ps_judge_pwr_lvl(wow_info, true);
 		phl_wow_ps_pwr_ntfy(wow_info, true);
 #endif
 		pstatus = phl_wow_init_postcfg(wow_info);
 		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_INIT_POSTCONFIG);
 			PHL_ERR("[wow] phl_wow_init_postcfg failed.\n");
 			goto end;
 		}
 		#ifdef CONFIG_WOW_WITH_SER
-		rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, true);
+		hstatus = rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, true);
+		if (RTW_HAL_STATUS_SUCCESS != hstatus)
+			SET_WOW_INIT_ERR(wow_info, WOW_SER_CTRL);
 		#endif
 #ifdef CONFIG_POWER_SAVE
 		/* power saving */
-		phl_wow_ps_pwr_cfg(wow_info, true);
+		pstatus = phl_wow_ps_pwr_cfg(wow_info, true);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_INIT_ERR(wow_info, WOW_PS_PWR_CFG);
+			goto end;
+		}
 #endif
 		pstatus = RTW_PHL_STATUS_SUCCESS;
 	}
 
 end:
+	if (_need_wow_dbg_dump(wow_info, true)) {
+		if (RTW_HAL_STATUS_SUCCESS != rtw_hal_wow_dbg_dump(phl_info->hal)){
+			SET_WOW_INIT_ERR(wow_info, WOW_DBG_DUMP);
+		}
+	}
+
 	if (RTW_PHL_STATUS_SUCCESS != pstatus) {
 		#ifdef CONFIG_SYNC_INTERRUPT
 		evt_ops->set_interrupt_caps(phl_to_drvpriv(phl_info), false);
@@ -1826,6 +1979,9 @@ end:
 			"[wow] %s success, with func_en %d, op_mode %d.\n",
 			__func__, wow_info->func_en, wow_info->op_mode);
 	}
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_WOW_START);
+#endif /* DBG_MONITOR_TIME */
 
 	return pstatus;
 #else
@@ -1863,40 +2019,69 @@ void phl_wow_stop(struct phl_info_t *phl_info, struct rtw_phl_stainfo_t *sta, u8
 {
 #ifdef CONFIG_WOWLAN
 	enum rtw_phl_status pstatus = RTW_PHL_STATUS_FAILURE;
+#ifdef CONFIG_WOW_WITH_SER
 	enum rtw_hal_status hstatus = RTW_HAL_STATUS_FAILURE;
+#endif
 	struct phl_wow_info *wow_info = phl_to_wow_info(phl_info);
 	u8 reset = 0;
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
+#endif /* DBG_MONITOR_TIME */
 
 	if (rtw_hal_get_pwr_state(phl_info->hal, &wow_info->mac_pwr)
-		!= RTW_HAL_STATUS_SUCCESS)
+		!= RTW_HAL_STATUS_SUCCESS) {
+		SET_WOW_DEINIT_ERR(wow_info, WOW_GET_PWR_STATE);
 		return;
+	}
+
+#ifdef DBG_MONITOR_TIME
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
 
 	PHL_TRACE(COMP_PHL_WOW, _PHL_INFO_, "%s enter with mac power %d\n.",
-			  __func__, wow_info->mac_pwr);
+	          __func__, wow_info->mac_pwr);
+
+	/*
+	 * If user load UEFI driver during Windows driver S5 shutdown (fast startup),
+	 * and do not unload UEFI driver before getting back to Windows, it will
+	 * cause wrong mac power state
+	 */
+	if (wow_info->mac_pwr == RTW_MAC_PWR_ON &&
+	    wow_info->op_mode == RTW_WOW_OP_PWR_DOWN) {
+		PHL_TRACE(COMP_PHL_WOW, _PHL_WARNING_,
+		          "%s: inconsistent between mac pwr state & wow op mode\n",
+		          __func__);
+		goto reinit;
+	}
 
 	if (wow_info->mac_pwr != RTW_MAC_PWR_OFF) {
 		#ifdef CONFIG_WOW_WITH_SER
-		rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, false);
+		hstatus = rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, false);
+		if (RTW_HAL_STATUS_SUCCESS != hstatus)
+			SET_WOW_DEINIT_ERR(wow_info, WOW_SER_CTRL);
 		#endif
 		#ifdef CONFIG_POWER_SAVE
 		/* leave clock/power gating */
 		pstatus = phl_wow_ps_pwr_cfg(wow_info, false);
 		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_DEINIT_ERR(wow_info, WOW_PS_PWR_CFG);
 			PHL_ERR("[wow] HW leave power saving failed.\n");
 			goto reinit;
 		}
 		#endif
 	}
 
-	hstatus = rtw_hal_set_wowlan(phl_info->phl_com, phl_info->hal, false);
-	if (RTW_HAL_STATUS_SUCCESS != hstatus) {
-		PHL_WARN("[wow] rtw_hal_set_wowlan failed, status(%u)\n", hstatus);
-	}
-
 	if (wow_info->mac_pwr == RTW_MAC_PWR_OFF) {
 		if (wow_info->op_mode == RTW_WOW_OP_PWR_DOWN) {
 			pstatus = rtw_phl_start(phl_info);
-			phl_role_recover(phl_info);
+			if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+				SET_WOW_DEINIT_ERR(wow_info, WOW_PHL_START);
+			}
+			pstatus = phl_cmd_set_wowlan(wow_info, false, false);
+			if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+				SET_WOW_DEINIT_ERR(wow_info, WOW_SET_WOWLAN);
+			}
+			phl_cmd_role_recover(phl_info);
 			*hw_reinit = true;
 		} else {
 			PHL_WARN("[wow] enter suspend with wow enabled but mac is power down\n");
@@ -1905,11 +2090,19 @@ void phl_wow_stop(struct phl_info_t *phl_info, struct rtw_phl_stainfo_t *sta, u8
 	} else if (wow_info->mac_pwr == RTW_MAC_PWR_ON ||
 			   wow_info->mac_pwr == RTW_MAC_PWR_LPS) {
 
+		pstatus = phl_cmd_set_wowlan(wow_info, false, true);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_DEINIT_ERR(wow_info, WOW_SET_WOWLAN);
+		}
+
 		phl_wow_handle_wake_rsn(wow_info, &reset);
 		if (reset)
 			goto reinit;
 
-		phl_module_start(phl_info);
+		pstatus = phl_module_start(phl_info);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_DEINIT_ERR(wow_info, WOW_MODULE_START);
+		}
 
 		phl_wow_deinit_precfg(wow_info);
 
@@ -1917,28 +2110,55 @@ void phl_wow_stop(struct phl_info_t *phl_info, struct rtw_phl_stainfo_t *sta, u8
 #ifdef CONFIG_POWER_SAVE
 		phl_wow_ps_pwr_ntfy(wow_info, false);
 		/* leave power saving */
-		phl_wow_ps_proto_cfg(wow_info, false);
+		pstatus = phl_wow_ps_proto_cfg(wow_info, false);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_DEINIT_ERR(wow_info, WOW_PS_PROTO_CFG);
+		}
 #endif
-		phl_wow_func_dis(wow_info);
+		pstatus = phl_wow_func_dis(wow_info);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			SET_WOW_DEINIT_ERR(wow_info, WOW_FUNC_DIS);
+		}
 
 		pstatus = phl_wow_deinit(wow_info);
-		if (pstatus != RTW_PHL_STATUS_SUCCESS)
+		if (pstatus != RTW_PHL_STATUS_SUCCESS) {
+			SET_WOW_DEINIT_ERR(wow_info, WOW_DEINIT);
 			goto reinit;
+		}
 
 		phl_wow_deinit_postcfg(wow_info);
 		phl_cmd_role_recover(phl_info);
 		#ifdef CONFIG_WOW_WITH_SER
-		rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, true);
+		hstatus = rtw_hal_ser_ctrl(phl_info->hal, HAL_SER_RSN_WOW, true);
+		if (RTW_HAL_STATUS_SUCCESS != hstatus)
+			SET_WOW_DEINIT_ERR(wow_info, WOW_SER_CTRL);
 		#endif
 		*hw_reinit = false;
 	} else {
 		PHL_ERR("%s : unexpected mac pwr state %d.\n", __func__, wow_info->mac_pwr);
 	}
 
+	if (_need_wow_dbg_dump(wow_info, false)) {
+		if (RTW_HAL_STATUS_SUCCESS != rtw_hal_wow_dbg_dump(phl_info->hal)){
+			SET_WOW_DEINIT_ERR(wow_info, WOW_DBG_DUMP);
+		}
+	}
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_WOW_STOP);
+#endif /* DBG_MONITOR_TIME */
+
 	return;
 reinit:
+	if (_need_wow_dbg_dump(wow_info, false)) {
+		if (RTW_HAL_STATUS_SUCCESS != rtw_hal_wow_dbg_dump(phl_info->hal)){
+			SET_WOW_DEINIT_ERR(wow_info, WOW_DBG_DUMP);
+		}
+	}
 	_wow_stop_reinit(phl_info);
 	*hw_reinit = true;
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_WOW_STOP);
+#endif /* DBG_MONITOR_TIME */
 	return;
 
 #endif /* CONFIG_WOWLAN */
@@ -2150,8 +2370,16 @@ enum rtw_phl_status rtw_phl_suspend(void *phl, struct rtw_phl_stainfo_t *sta, u8
 {
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
 	enum rtw_phl_status pstatus = RTW_PHL_STATUS_SUCCESS;
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
 
-	PHL_INFO("%s enter with wow_en(%d)\n.", __func__, wow_en);
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
+
+	PHL_INFO("%s: enter with wow_en(%d), (dev_state 0x%x)\n.",
+	        __func__, wow_en, phl_info->phl_com->dev_state);
+
+	SET_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_SUSPENDING);
 #ifdef CONFIG_WOWLAN
 	pstatus = _phl_cmd_send_msg_phy_on(phl_info);
 	if (RTW_PHL_STATUS_SUCCESS != pstatus) {
@@ -2172,7 +2400,13 @@ enum rtw_phl_status rtw_phl_suspend(void *phl, struct rtw_phl_stainfo_t *sta, u8
 	rtw_phl_stop(phl);
 #endif
 
-	FUNCOUT_WSTS(pstatus);
+	CLEAR_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_SUSPENDING);
+	SET_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_SUSPENDED);
+
+	PHL_INFO("%s: exit with (dev_state 0x%x)\n.", __func__, phl_info->phl_com->dev_state);
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_SUSPEND);
+#endif /* DBG_MONITOR_TIME */
 
 	return pstatus;
 }
@@ -2184,6 +2418,11 @@ enum rtw_phl_status rtw_phl_resume(void *phl, struct rtw_phl_stainfo_t *sta, u8 
 #ifdef CONFIG_WOWLAN
 	struct phl_wow_info *wow_info = phl_to_wow_info(phl_info);
 #endif
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
+
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
 
 	/**
 	 * Since some platforms require performance when device resuming, we need
@@ -2198,7 +2437,8 @@ enum rtw_phl_status rtw_phl_resume(void *phl, struct rtw_phl_stainfo_t *sta, u8 
 	 * "rtw_phl_resume" because core layer will not perform any other tasks when
 	 * calling rtw_phl_resume which is relatively simple enough.
 	 */
-	PHL_INFO("%s enter...\n.", __func__);
+	PHL_INFO("%s: enter...(dev_state 0x%x)\n.", __func__, phl_info->phl_com->dev_state);
+	CLEAR_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_SUSPENDED);
 	SET_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_RESUMING);
 
 #ifdef CONFIG_WOWLAN
@@ -2206,6 +2446,8 @@ enum rtw_phl_status rtw_phl_resume(void *phl, struct rtw_phl_stainfo_t *sta, u8 
 		phl_wow_stop(phl_info, sta, hw_reinit);
 	} else {
 		pstatus = rtw_phl_start(phl);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus)
+			SET_WOW_DEINIT_ERR(wow_info, WOW_PHL_START);
 		#ifdef CONFIG_POWER_SAVE
 		if (phl_ps_get_cur_pwr_lvl(phl_info) == PS_PWR_LVL_PWRON)
 		#endif
@@ -2228,7 +2470,11 @@ enum rtw_phl_status rtw_phl_resume(void *phl, struct rtw_phl_stainfo_t *sta, u8 
 
 	CLEAR_STATUS_FLAG(phl_info->phl_com->dev_state, RTW_DEV_RESUMING);
 
-	PHL_INFO("%s exit with hw_reinit %d.\n.", __func__, *hw_reinit);
+	PHL_INFO("%s: exit with hw_reinit %d (dev_state 0x%x).\n.", __func__,
+	         *hw_reinit, phl_info->phl_com->dev_state);
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(phl_info->phl_com, &start_t, TIME_PHL_RESUME);
+#endif /* DBG_MONITOR_TIME */
 
 	return pstatus;
 }
@@ -2407,19 +2653,13 @@ enum rtw_phl_status rtw_phl_interrupt_handler(void *phl)
 
 	int_hdler_msk = rtw_hal_interrupt_handler(phl_info->hal);
 
-#ifdef CONFIG_PHL_DUMP_TRX_STATUS
-	if (phl_info->phl_com->check_rx_int == 1)
-		PHL_PRINT("%s : 0x%x\n", __func__, int_hdler_msk);
-#else /* !CONFIG_PHL_DUMP_TRX_STATUS*/
-	PHL_DBG("%s : 0x%x\n", __func__, int_hdler_msk);
-#endif /* !CONFIG_PHL_DUMP_TRX_STATUS*/
-
 	if (!int_hdler_msk) {
-		//PHL_WARN("%s : 0x%x\n", __func__, int_hdler_msk);
+		PHL_WARN("%s : 0x%x\n", __func__, int_hdler_msk);
 		phl_status = RTW_PHL_STATUS_FAILURE;
 		goto end;
 	}
 
+	PHL_DBG("%s : 0x%x\n", __func__, int_hdler_msk);
 	/* beacon interrupt */
 	if (int_hdler_msk & BIT0)
 		;/* todo */
@@ -2432,11 +2672,11 @@ enum rtw_phl_status rtw_phl_interrupt_handler(void *phl)
 #if defined(CONFIG_SDIO_HCI) && defined(CONFIG_PHL_SDIO_READ_RXFF_IN_INT)
 		phl_info->hci_trx_ops->recv_rxfifo(phl);
 #else
-		phl_status = rtw_phl_start_rx_process(phl);
-#endif
 
-#if defined(CONFIG_PCI_HCI) && !defined(CONFIG_DYNAMIC_RX_BUF)
-		/* phl_status = hci_trx_ops->recycle_busy_wd(phl); */
+#if defined(CONFIG_PCI_HCI)
+		phl_info->hci_trx_ops->read_hw_rx(phl);
+#endif
+		phl_status = rtw_phl_start_rx_process(phl);
 #endif
 	}
 
@@ -2466,14 +2706,21 @@ enum rtw_phl_status rtw_phl_interrupt_handler(void *phl)
 	if (int_hdler_msk & BIT7)
 		phl_status = _phl_gtimer_event(gt_ctx, &skip_tx);
 
-	if (skip_tx)
-		goto end;
+	/* rp interrupt */
+	if (int_hdler_msk & BIT8) {
+#if defined(CONFIG_PCI_HCI)
+		phl_info->hci_trx_ops->read_hw_rx(phl);
+#endif
+		phl_status = rtw_phl_start_rx_process(phl);
+		if (!skip_tx) {
+			phl_status = phl_schedule_handler(phl_info->phl_com,
+		                                  &phl_info->phl_tx_handler);
+		}
+	}
 
 	if (phl_status != RTW_PHL_STATUS_SUCCESS)
 		PHL_INFO("rtw_phl_interrupt_handler fail !!\n");
 
-	/* schedule tx process */
-	phl_status = phl_schedule_handler(phl_info->phl_com, &phl_info->phl_tx_handler);
 end:
 
 #ifdef CONFIG_SYNC_INTERRUPT
@@ -2692,6 +2939,7 @@ void rtw_phl_reset_stat_ma_rssi(struct rtw_phl_com_t *phl_com)
 			for (j = 0; j < PHL_RSSI_MAVG_NUM; j++)
 				phl_com->rssi_stat.ma_rssi_ele[i][j] = 0;
 		}
+		phl_com->rssi_stat.last_rx_freerun = 0;
 		_os_spinunlock(phl_com->drv_priv,
 			       &(phl_com->rssi_stat.lock), _bh, NULL);
 	} while (0);
@@ -2717,6 +2965,27 @@ rtw_phl_get_ma_rssi(struct rtw_phl_com_t *phl_com,
 	return ret;
 }
 
+
+u32
+rtw_phl_get_last_rssi_rx_freerun(struct rtw_phl_com_t *phl_com)
+{
+
+	u32 ret = 0;
+	if (NULL == phl_com)
+		return ret;
+
+	_os_spinlock(phl_com->drv_priv,
+		     &(phl_com->rssi_stat.lock), _bh, NULL);
+	ret = phl_com->rssi_stat.last_rx_freerun;
+	_os_spinunlock(phl_com->drv_priv,
+		       &(phl_com->rssi_stat.lock), _bh, NULL);
+
+	return ret;
+}
+
+
+
+#ifdef CONFIG_PHL_BEAMFORM
 #ifdef RTW_WKARD_DYNAMIC_BFEE_CAP
 enum rtw_phl_status
 rtw_phl_bfee_ctrl(void *phl, struct rtw_wifi_role_link_t *rlink, bool ctrl)
@@ -2729,6 +2998,7 @@ rtw_phl_bfee_ctrl(void *phl, struct rtw_wifi_role_link_t *rlink, bool ctrl)
 	}
 	return pstatus;
 }
+#endif
 #endif
 
 u8
@@ -2785,6 +3055,12 @@ rtw_phl_get_ic_id(void *phl)
 	case CHIP_WIFI6_8852C:
 		ic_id = RTL8852C;
 		break;
+	case CHIP_WIFI6_8842A:
+		ic_id = RTL8842A;
+		break;
+	case CHIP_WIFI6_8852D:
+		ic_id = RTL8852D;
+		break;
 	case CHIP_WIFI6_8192XB:
 		ic_id = RTL8192XB;
 		break;
@@ -2793,6 +3069,12 @@ rtw_phl_get_ic_id(void *phl)
 		break;
 	case CHIP_WIFI6_8852BP:
 		ic_id = RTL8852BP;
+		break;
+	case CHIP_WIFI6_8852BPT:
+		ic_id = RTL8852BPT;
+		break;
+	case CHIP_WIFI6_8852BT:
+		ic_id = RTL8852BT;
 		break;
 	case CHIP_WIFI6_8851B:
 		ic_id = RTL8851B;
@@ -2817,3 +3099,41 @@ rtw_phl_pwr_switch_mac(void *phl, bool on)
 	}
 	return pstatus;
 }
+
+#ifdef CONFIG_SMART_ANTENNA
+void
+rtw_phl_get_antenna_info(void *phl, struct rtw_phl_smart_ant_info_t *antenna_info, bool reset_cnt)
+{
+	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+	u32 rx_ok = 0, rx_fail = 0, rx_FA = 0;
+	u32 *p_rx_ok=&rx_ok, *p_rx_fail=&rx_fail, *p_rx_FA=&rx_FA;
+	u32 numer,denomer;
+
+	/* get information from bb */
+	rtw_hal_bb_get_antenna_info(phl_info->hal, antenna_info, reset_cnt);
+
+	/* get information from mac */
+	rtw_hal_mac_get_rx_cnt_info(phl_info->hal, 0, 0, p_rx_ok);
+	rtw_hal_mac_get_rx_cnt_info(phl_info->hal, 0, 1, p_rx_fail);
+	rtw_hal_mac_get_rx_cnt_info(phl_info->hal, 0, 2, p_rx_FA);
+
+	if ( (rx_ok > 0xffff) || (rx_fail > 0xffff) ){
+		antenna_info->rx_per = 0xffff;
+	} else {
+		denomer = rx_ok + rx_fail + rx_FA;
+		numer = rx_fail + rx_FA + (denomer >> 1);
+		antenna_info->rx_per = (u16)(denomer ? (numer * 100)/denomer : 0);
+	}
+}
+
+void
+rtw_phl_get_antenna_info_acs(void *phl, struct rtw_phl_smart_ant_info_t *antenna_info)
+{
+	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+	struct phl_acs_info *acs_info = (struct phl_acs_info *)phl_info->acs_info;
+
+	_os_mem_cpy(phl_to_drvpriv(phl_info), antenna_info->acs_rpt, acs_info->rpt, sizeof(antenna_info->acs_rpt));
+}
+#endif
+
+

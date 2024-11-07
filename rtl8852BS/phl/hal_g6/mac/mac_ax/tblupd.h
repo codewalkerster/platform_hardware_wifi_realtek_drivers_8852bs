@@ -21,6 +21,7 @@
 #include "fwcmd.h"
 #include "trx_desc.h"
 #include "addr_cam.h"
+#include "tcpip_checksum_offload.h"
 
 /*--------------------Define MACRO--------------------------------------*/
 #define DLRU_CLASS_GRP_TBL	0
@@ -43,8 +44,8 @@
 #define BACAM_MAX_ENTRY_IDX_8852B 1
 #define BACAM_MIN_ENTRY_IDX_8851B 0
 #define BACAM_MAX_ENTRY_IDX_8851B 1
-#define BACAM_MAX_ENTRY_IDX_8851E 15
-#define BACAM_INIT_TMP_ENTRY_NUM_STA_8851E 2
+#define BACAM_MIN_ENTRY_IDX_8852BT 0
+#define BACAM_MAX_ENTRY_IDX_8852BT 1
 #define BACAM_MAX_ENTRY_IDX_8852C 15
 #define BACAM_INIT_TMP_ENTRY_NUM_AP_8852C 8
 #define BACAM_INIT_TMP_ENTRY_NUM_STA_8852C 2
@@ -66,6 +67,9 @@
 #define BACAM_MAX_ENTRY_IDX_DEF_1115E 127
 #define BACAM_MAX_RU_SUPPORT_B0_STA 1
 #define BACAM_MAX_RU_SUPPORT_B1_STA 1
+
+#define DCTL_INFO_SIZE		16
+#define DCTL_INFO_SIZE_V1	32
 /*--------------------Define Enum---------------------------------------*/
 
 /**
@@ -229,6 +233,8 @@ u32 mac_upd_ba_infotbl(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
+
+#if MAC_FEAT_MUMIMO
 /**
  * @addtogroup FrameExchange
  * @{
@@ -250,6 +256,7 @@ u32 mac_upd_mudecision_para(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
+#endif
 
 /**
  * @addtogroup FrameExchange
@@ -258,6 +265,7 @@ u32 mac_upd_mudecision_para(struct mac_ax_adapter *adapter,
  * @{
  */
 
+#if MAC_FEAT_ULOFDMA
 /**
  * @brief mac_upd_ul_fixinfo
  *
@@ -272,6 +280,7 @@ u32 mac_upd_ul_fixinfo(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
+#endif
 
 /**
  * @addtogroup FrameExchange
@@ -291,11 +300,14 @@ u32 mac_upd_ul_fixinfo(struct mac_ax_adapter *adapter,
  * @return Please Place Description here.
  * @retval u32
  */
+
+#if MAC_FEAT_F2PCMD
 u32 mac_f2p_test_cmd(struct mac_ax_adapter *adapter,
 		     struct mac_ax_f2p_test_para *info,
 		     struct mac_ax_f2p_wd *f2pwd,
 		     struct mac_ax_f2p_tx_cmd *ptxcmd,
 		     u8 *psigb_addr);
+#endif
 /**
  * @}
  * @}
@@ -319,9 +331,19 @@ u32 mac_f2p_test_cmd(struct mac_ax_adapter *adapter,
  * @return Please Place Description here.
  * @retval u32
  */
+#if (MAC_AX_8852A_SUPPORT || MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8852BT_SUPPORT)
 u32 mac_upd_dctl_info(struct mac_ax_adapter *adapter,
 		      struct mac_ax_dctl_info *info,
 		      struct mac_ax_dctl_info *mask, u8 macid, u8 operation);
+u32 dctl_info_debug_write(struct mac_ax_adapter *adapter, u8 *buf, u8 macid);
+#endif
+#if (MAC_AX_8852C_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852D_SUPPORT)
+u32 mac_upd_dctl_info_v1(struct mac_ax_adapter *adapter,
+			 struct mac_ax_dctl_info *info,
+			 struct mac_ax_dctl_info *mask,
+			 u8 macid, u8 operation);
+u32 dctl_info_debug_write_v1(struct mac_ax_adapter *adapter, u8 *buf, u8 macid);
+#endif
 /**
  * @}
  * @}
@@ -382,7 +404,7 @@ u32 mac_upd_cctl_info(struct mac_ax_adapter *adapter,
  * @addtogroup FW_CommonInfo
  * @{
  */
-
+#if MAC_FEAT_F2PCMD
 /**
  * @brief mac_set_fixmode_mib
  *
@@ -390,9 +412,10 @@ u32 mac_upd_cctl_info(struct mac_ax_adapter *adapter,
  * @param *info
  * @return Please Place Description here.
  * @retval u32
- */
+ */ 
 u32 mac_set_fixmode_mib(struct mac_ax_adapter *adapter,
 			struct mac_ax_fixmode_para *info);
+
 /**
  * @}
  * @}
@@ -419,6 +442,7 @@ u32 mac_snd_test_cmd(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
+#endif
 
 /**
  * @addtogroup Association
@@ -463,6 +487,7 @@ u32 mac_bacam_info(struct mac_ax_adapter *adapter,
  * @}
  */
 
+#if (MAC_FEAT_DLOFDMA || MAC_FEAT_MUMIMO)
 /**
  * @addtogroup FrameExchange
  * @{
@@ -480,6 +505,8 @@ u32 mac_bacam_info(struct mac_ax_adapter *adapter,
  */
 u32 mac_ss_dl_grp_upd(struct mac_ax_adapter *adapter,
 		      struct mac_ax_ss_dl_grp_upd *info);
+#endif
+
 /**
  * @}
  * @}
@@ -492,6 +519,7 @@ u32 mac_ss_dl_grp_upd(struct mac_ax_adapter *adapter,
  * @{
  */
 
+#if MAC_FEAT_ULOFDMA
 /**
  * @brief mac_ss_ul_grp_upd
  *
@@ -528,7 +556,9 @@ u32 mac_ss_ul_sta_upd(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
+#endif
 
+#if MAC_FEAT_MUMIMO
 /**
  * @addtogroup FrameExchange
  * @{
@@ -550,6 +580,9 @@ u32 mac_mu_sta_upd(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
+#endif
+
+#if MAC_FEAT_F2PCMD
 
 /**
  * @addtogroup FrameExchange
@@ -638,7 +671,7 @@ u32 mac_dumpwland(struct mac_ax_adapter *adapter,
  * @}
  * @}
  */
-
+#endif
 /**
  * @addtogroup Basic_TRX
  * @{
@@ -663,30 +696,6 @@ u32 cctl_info_debug_write(struct mac_ax_adapter *adapter, u8 macid,
  * @}
  * @}
  */
-
-/**
- * @addtogroup Basic_TRX
- * @{
- * @addtogroup DMAC_Table
- * @{
- */
-
-/**
- * @brief dctl_info_debug_write
- *
- * @param *adapter
- * @param macid
- * @param *tbl
- * @return Please Place Description here.
- * @retval u32
- */
-u32 dctl_info_debug_write(struct mac_ax_adapter *adapter, u8 macid,
-			  struct fwcmd_dctlinfo_ud *tbl);
-/**
- * @}
- * @}
- */
-
 #endif
 u32 mac_fw_status_cmd(struct mac_ax_adapter *adapter,
 		      struct mac_ax_fwstatus_payload *info);
@@ -715,6 +724,7 @@ u32 mac_tx_path_map_cfg(struct mac_ax_adapter *adapter,
  * @}
  */
 
+#if (MAC_FEAT_DLOFDMA || MAC_FEAT_ULOFDMA)
 /**
  * @addtogroup FrameExchange
  * @{
@@ -735,6 +745,8 @@ u32 mac_tx_path_map_cfg(struct mac_ax_adapter *adapter,
 u32 mac_fwc2h_ofdma_sts_parse(struct mac_ax_adapter *adapter,
 			      struct mac_ax_fwc2h_sts *fw_c2h_sts,
 			      u32 *content);
+
+
 /**
  * @}
  * @}
@@ -758,9 +770,13 @@ u32 mac_fwc2h_ofdma_sts_parse(struct mac_ax_adapter *adapter,
 
 u32 mac_fw_ofdma_sts_en(struct mac_ax_adapter *adapter,
 			struct mac_ax_fwsts_para *fwsts_para);
+#endif
+
 /**
  * @}
  * @}
  */
-
+#if MAC_FEAT_F2PCMD
+u32 mac_txmode_switch(struct mac_ax_adapter *adapter, u8 swtx);
+#endif
 #endif

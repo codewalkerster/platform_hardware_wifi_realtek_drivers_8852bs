@@ -14,7 +14,6 @@
  *****************************************************************************/
 #define _RTL8852BS_OPS_C_
 #include "../rtl8852b_hal.h"
-#include "rtl8852bs.h"
 
 void hal_set_ops_8852bs(struct rtw_phl_com_t *phl_com,
 					struct hal_info_t *hal)
@@ -25,6 +24,8 @@ void hal_set_ops_8852bs(struct rtw_phl_com_t *phl_com,
 
 	ops->init_hal_spec = init_hal_spec_8852bs;
 	ops->hal_get_efuse = hal_get_efuse_8852bs;
+	ops->hal_fast_start = hal_fast_start_8852bs;
+	ops->hal_fast_stop = hal_fast_stop_8852bs;
 	ops->hal_init = hal_init_8852bs;
 	ops->hal_deinit = hal_deinit_8852bs;
 	ops->hal_start = hal_start_8852bs;

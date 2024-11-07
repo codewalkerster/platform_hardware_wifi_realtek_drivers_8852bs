@@ -29,7 +29,15 @@
 #define HALBB_AX4RU_STA_NUM 4
 #define HALBB_AX8RU_STA_NUM 8
 #define HALBB_MAX_RU_STA_NUM 16
+#define HALBB_MAX_RUCMD_USR_NUM 16
 /*@--------------------------[Enum]------------------------------------------*/
+
+enum rtw_ru_op_cmd {
+	RUGRPCMD_ADD_USER = 0,
+	RUGRPCMD_DEL_USER  = 1,
+	RUGRPCMD_MAX
+};
+
 enum rtw_rua_tbl_hdr_rw {
 	RUA_TBL_RW_READ = 0,
 	RUA_TBL_RW_WRITE = 1
@@ -64,15 +72,13 @@ enum rtw_ra_type {
 
 /*@--------------------------[Structure]-------------------------------------*/
  struct rtw_rua_tbl_hdr {
-	u8 rw:1;
-	u8 idx:7;
-
-	u16 offset:5;
-	u16 len:10;
-	u16 type:1;
-
-	u8 tbl_class:6;
-	u8 band:2;
+	u32 rw:1;
+	u32 idx:7;
+	u32 offset:5;
+	u32 len:10;
+	u32 type:1;
+	u32 tbl_class:6;
+	u32 band:2;
 };
 
 struct rtw_ru_rate_ent {
@@ -380,7 +386,8 @@ struct rtw_dlru_fixtbl_univrsl {
 	u8 ru_swp_flg: 1;
 	u8 rsvd0: 7;
 
-	u32 rsvd3;
+	u16 ch20_with_data;
+	u16 rsvd2;
 	struct rtw_dlfix_sta_i_ext sta[HALBB_MAX_RU_STA_NUM];
 
 	struct rtw_rupos_fixtbl rupos_tbl;
@@ -534,12 +541,13 @@ struct rtw_ba_tbl_info {
 };
 
 struct rtw_sw_grp_bitmap {
-	u8 macid;
+	u16 macid;
 
 	u8 en_upd_dl_swgrp:1;
 	u8 en_upd_ul_swgrp:1;
 	u8 cmdend:1; // add for determine whether last user or not
 	u8 rsvd1:5;
+	u8 rsvd2;
 
 	u32 dl_sw_grp_bitmap;
 	u32 ul_sw_grp_bitmap;
@@ -550,17 +558,16 @@ struct rtw_sw_grp_set {
 };
 
 struct rtw_dl_macid_cfg {
-	u32 macid: 8;
+	u32 macid: 16;
 	u32 dl_su_rate_cfg: 1;
 	u32 dl_su_rate: 9;
 	u32 dl_su_bw: 2;
 	u32 dl_su_pwr_cfg: 1;
-	u32 dl_su_pwr: 6;
-	u32 rsvd0: 5;
+	u32 rsvd0: 3;
 
 	u32 gi_ltf_4x8_support: 1;
 	u32 gi_ltf_1x8_support: 1;
-	u32 rsvd1: 6;
+	u32 dl_su_pwr: 6;
 	u32 dl_su_info_en: 1;
 	u32 rsvd2: 2;
 	u32 dl_su_gi_ltf: 3;
@@ -657,21 +664,36 @@ struct rtw_macid_info {
 };
 
 struct rtw_ul_macid_cfg {
-	u32 macid: 8;
+	u32 macid: 16;
 	u32 endcmd: 1;
-	u32 rsvd0: 23;
+	u32 rsvd0: 15;
 
 	u32 ul_su_info_en: 1;
-	u32 ul_su_bw: 2;
 	u32 ul_su_gi_ltf: 3;
+	u32 rsvd1: 2;
 	u32 ul_su_doppler_ctrl: 2;
 	u32 ul_su_dcm: 1;
 	u32 ul_su_ss: 3;
 	u32 ul_su_mcs: 4;
-	u32 rsvd2: 5;
+	u32 ul_su_bw: 3;
 	u32 ul_su_stbc: 1;
 	u32 ul_su_coding: 1;
+	u32 rsvd2: 2;
 	u32 ul_su_rssi_m: 9;
+
+	u32 fix_ru_pos: 1;
+	u32 fix_rate: 1;
+	u32 fix_dbw: 1;
+	u32 fix_giltf: 1;
+	u32 fix_tgt_rssi: 1;
+	u32 fix_coding: 1;
+	u32 rsvd3: 2;
+	u32 rsvd4: 8;
+	u32 tx_mode_ul: 2;
+	u32 rsvd5: 2;
+	u32 rsvd6: 3;
+	u32 ps160: 1;
+	u32 ru_pos: 8;
 };
 
 struct rtw_ul_macid_set {
@@ -679,19 +701,18 @@ struct rtw_ul_macid_set {
 };
 
 struct rtw_csiinfo_cfg {
-	u32 macid: 8;
-	u32 csi_info_bitmap: 8;
-	u32 rsvd0: 16;
+	u32 macid: 16;
+	u32 csi_info_bitmap: 16;
 };
 
 struct rtw_cqi_info {
-	u32 macid: 8;
+	u32 macid: 16;
 	u32 fw_cqi_flag: 1; /* UL or DL*/
 	u32 ru_rate_table_row_idx: 4; /* UL or DL*/
 	u32 ul_dl: 1; /*1'b0 means UL, 1'b1 means DL */
 	u32 endcmd: 1;
 	u32 rsvd0: 1;
-	u32 rsvd1: 16;
+	u32 rsvd1: 8;
 
 	s8 cqi_diff_table[19]; /* UL or DL*/
 	u8 rsvd2;
@@ -730,7 +751,8 @@ struct rtw_bbinfo_cfg {
 
 	//txsc info update
 	u32 txsc_upd_en:1;
-	u32 rsvd4:31;
+	u32 txsb_upd_en:1;
+	u32 rsvd4:30;
 
 	u32 txsc_20:8;
 	u32 txsc_40:8;
@@ -738,6 +760,10 @@ struct rtw_bbinfo_cfg {
 	u32 txsc_160:8;
 
 	//txsb info update
+	u32 txsb_20:8;
+	u32 txsb_40:8;
+	u32 txsb_80:8;
+	u32 txsb_160:8;
 };
 
 
@@ -784,16 +810,71 @@ struct rtw_pwr_by_rt_tbl{
 };
 
 struct rtw_ra_masking{
-    u16 macid;
-    u8 ra_sel:4;
-    u8 rsvd1:4;
-    u8 op_sel:4;
-    u8 rsvd2:4;
+	u16 macid;
+	u8 ra_sel:4;
+	u8 rsvd1:4;
+	u8 op_sel:4;
+	u8 rsvd2:4;
 
-    u32 mask_1ss;
-    u32 mask_2ss;
-    u32 mask_3ss;
-    u32 mask_4ss;
+	u32 mask_1ss;
+	u32 mask_2ss;
+	u32 mask_3ss;
+	u32 mask_4ss;
+};
+
+struct rtw_rucmd_usr {
+	u16 macid;
+	u16 rsvd;
+};
+
+struct rtw_dlru_cmd {
+	u8 fix_mode_flg: 1;
+	u8 is_hwgrp: 1;
+	u8 txpwr_ofld_en: 1;
+	u8 pwrlim_dis: 1;
+	u8 giltf_ctrl_en:1;
+	u8 stbc_permit: 1;
+	u8 rsvd1:2;
+	u8 rsvd2[3];
+
+	u8 band;
+	u8 tx_mode;
+	u8 grp_id;
+	u8 ppdu_bw;
+
+	u16 grp_tx_pwr;
+	u8 gi_ltf;
+	u8 rsvd4;
+
+	u8 op_cmd;
+	u8 usr_num;
+	u8 rsvd5[2];
+
+	struct rtw_rucmd_usr usr[HALBB_MAX_RUCMD_USR_NUM];
+};
+
+struct rtw_ulru_cmd {
+	u8 fix_mode_flg: 1;
+	u8 is_hwgrp: 1;
+	u8 giltf_ctrl_en:1;
+	u8 stbc_permit: 1;
+	u8 rsvd1:4;
+	u8 rsvd2[3];
+
+	u8 band;
+	u8 tx_mode;
+	u8 grp_id;
+	u8 ppdu_bw;
+
+	u8 gi_ltf;
+	u8 rsvd4;
+	u16 rsvd5;
+
+	u8 op_cmd;
+	u8 usr_num;
+	u8 rsvd6[2];
+
+	struct rtw_rucmd_usr usr[HALBB_MAX_RUCMD_USR_NUM];
 };
 
 
@@ -837,9 +918,13 @@ u32 halbb_ch_bw_notif(struct bb_info *bb, struct rtw_ch_bw_notif *cfg);
 
 u32 halbb_pwrtbl_notif(struct bb_info *bb, struct rtw_pwrtbl_notif *cfg);
 
-u32 halbb_macid_init(struct bb_info *bb, struct rtw_macid_info *cfg);
+u32 halbb_macid_init(struct bb_info *bb, struct rtw_phl_stainfo_t *phl_sta_i);
 
 u32 halbb_ra_masking(struct bb_info *bb, struct rtw_ra_masking *cfg);
+
+u32 halbb_dlru_cmd(struct bb_info *bb, struct  rtw_dlru_cmd *info);
+
+u32 halbb_ulru_cmd(struct bb_info *bb, struct  rtw_ulru_cmd *info);
 /*u32 halbb_rua_tbl_init(struct bb_info *bb);*/
 #endif
 #endif

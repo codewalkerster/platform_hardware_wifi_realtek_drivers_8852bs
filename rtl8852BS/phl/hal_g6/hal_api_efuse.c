@@ -61,11 +61,11 @@ rtw_hal_efuse_shadow_write(struct hal_info_t *hal_info, u8 byte_count,
 }
 
 enum rtw_hal_status
-rtw_hal_efuse_shadow2buf(struct hal_info_t *hal_info, u8 *pbuf, u16 buflen, u8 is_limit)
+rtw_hal_efuse_shadow2buf(struct hal_info_t *hal_info, u8 *pbuf, u16 buflen)
 {
 	enum rtw_hal_status status = RTW_HAL_STATUS_SUCCESS;
 
-	status = rtw_efuse_shadow2buf(hal_info->efuse, pbuf, buflen, is_limit);
+	status = rtw_efuse_shadow2buf(hal_info->efuse, pbuf, buflen);
 
 	return status;
 }
@@ -195,11 +195,18 @@ void rtw_hal_efuse_process(struct rtw_phl_com_t *phl_com,
                            char *ic_name
 )
 {
-	if(rtw_efuse_is_processed(hal_info->efuse) == true) {
+#ifdef DBG_MONITOR_TIME
+	u32 start_t = 0;
+#endif /* DBG_MONITOR_TIME */
+
+	if (rtw_efuse_is_processed(hal_info->efuse) == true) {
 		PHL_INFO("%s EFUSE module is already initialized.\n", __FUNCTION__);
 		return;
 	}
 
+#ifdef DBG_MONITOR_TIME
+	PHL_FUN_MON_START(&start_t);
+#endif /* DBG_MONITOR_TIME */
 #ifdef CONFIG_PHL_FW_DUMP_EFUSE
 	rtw_phl_fw_dump_efuse_precfg(phl_com);
 #endif
@@ -209,6 +216,10 @@ void rtw_hal_efuse_process(struct rtw_phl_com_t *phl_com,
 #ifdef CONFIG_PHL_FW_DUMP_EFUSE
 	rtw_phl_fw_dump_efuse_postcfg(phl_com);
 #endif
+
+#ifdef DBG_MONITOR_TIME
+	PHL_FUNC_MON_END(hal_info->phl_com, &start_t, TIME_HAL_EFUSE_PROC);
+#endif /* DBG_MONITOR_TIME */
 }
 
 enum rtw_hal_status rtw_hal_efuse_init(struct rtw_phl_com_t *phl_com,
@@ -434,8 +445,7 @@ void hal_efuse_dump_wifi_map(
 				 _out_len - _used_len, "Allocate buffer fail!\n");
 		goto exit;
 	}
-	rtw_efuse_shadow2buf(hal_info->efuse, buf, (u16)map_len, true);
-
+	rtw_efuse_shadow2buf(hal_info->efuse, buf, (u16)map_len);
 
 	PHL_DBG_OUTBUF(_out_len, _used_len, output + _used_len, _out_len - _used_len,
 			 "EFUSE Wifi shadow map from %s\n\n",

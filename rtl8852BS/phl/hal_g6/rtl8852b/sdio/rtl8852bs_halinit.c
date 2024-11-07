@@ -14,7 +14,6 @@
  *****************************************************************************/
 #define _RTL8852BS_HALINIT_C_
 #include "../rtl8852b_hal.h"
-#include "rtl8852bs_halinit.h"
 
 static void _hal_pre_init_8852bs(struct rtw_phl_com_t *phl_com,
 				 struct hal_info_t *hal_info,
@@ -29,14 +28,12 @@ static void _hal_pre_init_8852bs(struct rtw_phl_com_t *phl_com,
 	else
 		trx_info->trx_mode = MAC_AX_TRX_HW_MODE;
 
-	if (phl_com->dev_cap.logo_test == true) {
+	if (phl_com->drv_mode == RTW_DRV_MODE_LOGO_TEST)
 		trx_info->qta_mode = MAC_AX_QTA_SCC_LOGO;
-	} else {
-		if (phl_com->dev_cap.quota_turbo == true)
-			trx_info->qta_mode = MAC_AX_QTA_SCC_TURBO;
-		else
-			trx_info->qta_mode = MAC_AX_QTA_SCC;
-	}
+	else if (phl_com->dev_cap.quota_turbo == true)
+		trx_info->qta_mode = MAC_AX_QTA_SCC_TURBO;
+	else
+		trx_info->qta_mode = MAC_AX_QTA_SCC;
 
 	#ifdef RTW_WKARD_LAMODE
 	PHL_INFO("%s : la_mode %d\n", __func__, phl_com->dev_cap.la_mode);
@@ -51,7 +48,13 @@ static void _hal_pre_init_8852bs(struct rtw_phl_com_t *phl_com,
 		rpr_cfg->agg_def = 1;
 	}
 
-	rpr_cfg->tmr_def = 1;
+	if (phl_com->dev_cap.rpq_tmr) {
+		rpr_cfg->tmr_def = 0;
+		rpr_cfg->tmr = phl_com->dev_cap.rpq_tmr;
+	} else {
+		rpr_cfg->tmr_def = 1;
+	}
+
 	rpr_cfg->txok_en = MAC_AX_FUNC_DEF;
 	rpr_cfg->rty_lmt_en = MAC_AX_FUNC_DEF;
 	rpr_cfg->lft_drop_en = MAC_AX_FUNC_DEF;
@@ -78,7 +81,7 @@ void init_hal_spec_8852bs(struct rtw_phl_com_t *phl_com,
 	bus_hw->rx_buf_size = 30720;		/* 30KB */
 	bus_hw->rx_buf_num = 8;
 
-	hal->hal_com->dev_hw_cap.ps_cap.lps_pause_tx = true;
+	hal->hal_com->dev_hw_cap.ps_cap.ps_pause_tx = true;
 	phl_com->hal_spec.ser_cfg_int = false;
 	phl_com->hal_spec.ps_cfg_int = false;
 }
@@ -92,6 +95,31 @@ enum rtw_hal_status hal_get_efuse_8852bs(struct rtw_phl_com_t *phl_com,
 	_hal_pre_init_8852bs(phl_com, hal_info, &init_52bs);
 
 	return hal_get_efuse_8852b(phl_com, hal_info, &init_52bs);
+}
+
+enum rtw_hal_status hal_fast_start_8852bs(struct rtw_phl_com_t *phl_com,
+					 struct hal_info_t *hal_info)
+{
+	struct hal_init_info_t init_52bs;
+	enum rtw_hal_status hal_status = RTW_HAL_STATUS_FAILURE;
+
+	_os_mem_set(hal_to_drvpriv(hal_info), &init_52bs, 0, sizeof(init_52bs));
+	_hal_pre_init_8852bs(phl_com, hal_info, &init_52bs);
+
+	hal_status = hal_fast_start_8852b(phl_com, hal_info, &init_52bs);
+	if (RTW_HAL_STATUS_SUCCESS != hal_status) {
+
+		PHL_ERR("hal_fast_start_8852b: status = %u\n",hal_status);
+		return hal_status;
+	}
+
+	return hal_status;
+}
+
+enum rtw_hal_status hal_fast_stop_8852bs(struct rtw_phl_com_t *phl_com,
+					 struct hal_info_t *hal_info)
+{
+	return hal_fast_stop_8852b(phl_com, hal_info);
 }
 
 enum rtw_hal_status hal_init_8852bs(struct rtw_phl_com_t *phl_com,
@@ -166,14 +194,12 @@ hal_wow_init_8852bs(struct rtw_phl_com_t *phl_com, struct hal_info_t *hal_info,
 	else
 		trx_info->trx_mode = MAC_AX_TRX_HW_MODE;
 
-	if (phl_com->dev_cap.logo_test == true) {
+	if (phl_com->drv_mode == RTW_DRV_MODE_LOGO_TEST)
 		trx_info->qta_mode = MAC_AX_QTA_SCC_LOGO;
-	} else {
-		if (phl_com->dev_cap.quota_turbo == true)
-			trx_info->qta_mode = MAC_AX_QTA_SCC_TURBO;
-		else
-			trx_info->qta_mode = MAC_AX_QTA_SCC;
-	}
+	else if (phl_com->dev_cap.quota_turbo == true)
+		trx_info->qta_mode = MAC_AX_QTA_SCC_TURBO;
+	else
+		trx_info->qta_mode = MAC_AX_QTA_SCC;
 
 	init_52bs.ic_name = "rtl8852bs";
 
@@ -193,14 +219,13 @@ hal_wow_deinit_8852bs(struct rtw_phl_com_t *phl_com, struct hal_info_t *hal_info
 	else
 		trx_info->trx_mode = MAC_AX_TRX_HW_MODE;
 
-	if (phl_com->dev_cap.logo_test == true) {
+	if (phl_com->drv_mode == RTW_DRV_MODE_LOGO_TEST)
 		trx_info->qta_mode = MAC_AX_QTA_SCC_LOGO;
-	} else {
-		if (phl_com->dev_cap.quota_turbo == true)
-			trx_info->qta_mode = MAC_AX_QTA_SCC_TURBO;
-		else
-			trx_info->qta_mode = MAC_AX_QTA_SCC;
-	}
+	else if (phl_com->dev_cap.quota_turbo == true)
+		trx_info->qta_mode = MAC_AX_QTA_SCC_TURBO;
+	else
+		trx_info->qta_mode = MAC_AX_QTA_SCC;
+
 	init_52bs.ic_name = "rtl8852bs";
 
 	return hal_wow_deinit_8852b(phl_com, hal_info, sta, &init_52bs);

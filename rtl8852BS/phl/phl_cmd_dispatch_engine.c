@@ -441,6 +441,16 @@ static const char *_get_evt_str(u32 evt)
 		return "MSG_EVT_DBG_RX_DUMP";
 	case MSG_EVT_DBG_TX_DUMP:
 		return "MSG_EVT_DBG_TX_DUMP";
+#ifdef CONFIG_DBCC_P2P_BG_LISTEN
+	case MSG_EVT_CONNECT_END_DBCC_EN:
+		return "MSG_EVT_CONNECT_END_DBCC_EN";
+	case MSG_EVT_DISCONNECT_END_DBCC_EN:
+		return "MSG_EVT_DISCONNECT_END_DBCC_EN";
+	case MSG_EVT_CONNECT_CMD_DBCC_DIS:
+		return "MSG_EVT_CONNECT_CMD_DBCC_DIS";
+	case MSG_EVT_DISCONNECT_CMD_DBCC_EN:
+		return "MSG_EVT_DISCONNECT_CMD_DBCC_EN";
+#endif
 	default:
 		return "Unknown";
 	}
@@ -673,7 +683,11 @@ phl_disp_eng_send_msg(struct phl_info_t *phl,
 	if (RTW_PHL_STATUS_SUCCESS != status)
 		return status;
 
-	return dispr_send_msg(dispr, msg, attr, msg_hdl);
+	status = dispr_send_msg(dispr, msg, attr, msg_hdl);
+	if (RTW_PHL_STATUS_SUCCESS != status)
+		PHL_ERR("%s: send msg fail! status %u\n", __func__, status);
+
+	return status;
 }
 
 enum rtw_phl_status
@@ -805,14 +819,14 @@ phl_disp_eng_notify_dev_io_status(struct phl_info_t *phl,
 	return RTW_PHL_STATUS_SUCCESS;
 }
 
-void phl_disp_eng_notify_shall_stop(struct phl_info_t *phl)
+void phl_disp_eng_notify_shall_stop(struct phl_info_t *phl, bool surprise)
 {
 	struct phl_cmd_dispatch_engine *disp_eng = &(phl->disp_eng);
 	u8 i = 0;
 
 	for (i = 0; i < disp_eng->phy_num; i++) {
 		if (is_dispr_started(disp_eng->dispatcher[i]))
-			dispr_notify_shall_stop(disp_eng->dispatcher[i]);
+			dispr_notify_shall_stop(disp_eng->dispatcher[i], surprise);
 	}
 }
 

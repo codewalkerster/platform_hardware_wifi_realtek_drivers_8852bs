@@ -119,6 +119,22 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_8851b_turbo[] = {
 	{40, 0, 0} /* FWCMDQ */
 };
 
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_8852bt[] = {
+	{16, 742, grp_0}, /* ACH 0 */
+	{16, 742, grp_0}, /* ACH 1 */
+	{16, 742, grp_0}, /* ACH 2 */
+	{16, 742, grp_0}, /* ACH 3 */
+	{0, 0, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{0, 0, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{15, 743, grp_0}, /* B0MGQ */
+	{15, 743, grp_0}, /* B0HIQ */
+	{0, 0, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
+	{40, 0, 0} /* FWCMDQ */
+};
+
 #ifdef PHL_FEATURE_AP
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8852c[] = {
 	{26, 3098, grp_0}, /* ACH 0 */
@@ -136,55 +152,23 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8852c[] = {
 	{40, 0, 0} /* FWCMDQ */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8851e[] = {
-	{26, 3098, grp_0}, /* ACH 0 */
-	{26, 3098, grp_0}, /* ACH 1 */
-	{26, 3098, grp_0}, /* ACH 2 */
-	{26, 3098, grp_0}, /* ACH 3 */
-	{0, 0, grp_0}, /* ACH 4 */
-	{0, 0, grp_0}, /* ACH 5 */
-	{0, 0, grp_0}, /* ACH 6 */
-	{0, 0, grp_0}, /* ACH 7 */
-	{26, 3098, grp_0}, /* B0MGQ */
-	{26, 3098, grp_0}, /* B0HIQ */
-	{0, 0, grp_0}, /* B1MGQ */
-	{0, 0, grp_0}, /* B1HIQ */
-	{40, 0, 0} /* FWCMDQ */
-};
-
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8852d[] = {
-	{26, 3098, grp_0}, /* ACH 0 */
-	{26, 3098, grp_0}, /* ACH 1 */
-	{26, 3098, grp_0}, /* ACH 2 */
-	{26, 3098, grp_0}, /* ACH 3 */
+	{23, 3095, grp_0}, /* ACH 0 */
+	{23, 3095, grp_0}, /* ACH 1 */
+	{23, 3095, grp_0}, /* ACH 2 */
+	{23, 3095, grp_0}, /* ACH 3 */
 	{0, 0, grp_0}, /* ACH 4 */
 	{0, 0, grp_0}, /* ACH 5 */
 	{0, 0, grp_0}, /* ACH 6 */
 	{0, 0, grp_0}, /* ACH 7 */
-	{26, 3098, grp_0}, /* B0MGQ */
-	{26, 3098, grp_0}, /* B0HIQ */
+	{22, 3094, grp_0}, /* B0MGQ */
+	{22, 3094, grp_0}, /* B0HIQ */
 	{0, 0, grp_0}, /* B1MGQ */
 	{0, 0, grp_0}, /* B1HIQ */
 	{40, 0, 0} /* FWCMDQ */
 };
 #else // for NiC mode use
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8852c[] = {
-	{13, 1614, grp_0}, /* ACH 0 */
-	{13, 1614, grp_0}, /* ACH 1 */
-	{13, 1614, grp_0}, /* ACH 2 */
-	{13, 1614, grp_0}, /* ACH 3 */
-	{13, 1614, grp_1}, /* ACH 4 */
-	{13, 1614, grp_1}, /* ACH 5 */
-	{13, 1614, grp_1}, /* ACH 6 */
-	{13, 1614, grp_1}, /* ACH 7 */
-	{13, 1614, grp_0}, /* B0MGQ */
-	{13, 1614, grp_0}, /* B0HIQ */
-	{13, 1614, grp_1}, /* B1MGQ */
-	{13, 1614, grp_1}, /* B1HIQ */
-	{40, 0, 0} /* FWCMDQ */
-};
-
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8851e[] = {
 	{13, 1614, grp_0}, /* ACH 0 */
 	{13, 1614, grp_0}, /* ACH 1 */
 	{13, 1614, grp_0}, /* ACH 2 */
@@ -218,22 +202,6 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_8852d[] = {
 #endif
 
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_dbcc_8852c[] = {
-	{12, 1609, grp_0}, /* ACH 0 */
-	{12, 1609, grp_0}, /* ACH 1 */
-	{12, 1609, grp_0}, /* ACH 2 */
-	{12, 1609, grp_0}, /* ACH 3 */
-	{12, 1609, grp_1}, /* ACH 4 */
-	{12, 1609, grp_1}, /* ACH 5 */
-	{12, 1609, grp_1}, /* ACH 6 */
-	{12, 1609, grp_1}, /* ACH 7 */
-	{12, 1609, grp_0}, /* B0MGQ */
-	{12, 1609, grp_0}, /* B0HIQ */
-	{12, 1609, grp_1}, /* B1MGQ */
-	{12, 1609, grp_1}, /* B1HIQ */
-	{40, 0, 0} /* FWCMDQ */
-};
-
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_dbcc_8851e[] = {
 	{12, 1609, grp_0}, /* ACH 0 */
 	{12, 1609, grp_0}, /* ACH 1 */
 	{12, 1609, grp_0}, /* ACH 2 */
@@ -313,6 +281,22 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_wd128_8851b[] = {
 	{40, 0, 0} /* FWCMDQ */
 };
 
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_wd128_8852bt[] = {
+	{256, 1792, grp_0}, /* ACH 0 */
+	{256, 1792, grp_0}, /* ACH 1 */
+	{256, 1792, grp_0}, /* ACH 2 */
+	{256, 1792, grp_0}, /* ACH 3 */
+	{0, 0, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{0, 0, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{256, 1792, grp_0}, /* B0MGQ */
+	{256, 1792, grp_0}, /* B0HIQ */
+	{0, 0, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
+	{40, 0, 0} /* FWCMDQ */
+};
+
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_stf_8852a[] = {
 	{8, 256, grp_0}, /* ACH 0 */
 	{8, 256, grp_0}, /* ACH 1 */
@@ -361,23 +345,23 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_stf_8851b[] = {
 	{40, 0, 0} /* FWCMDQ */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_stf_8852c[] = {
-	{2, 108, grp_0}, /* ACH 0 */
-	{2, 108, grp_0}, /* ACH 1 */
-	{2, 108, grp_0}, /* ACH 2 */
-	{2, 108, grp_0}, /* ACH 3 */
-	{2, 108, grp_1}, /* ACH 4 */
-	{2, 108, grp_1}, /* ACH 5 */
-	{2, 108, grp_1}, /* ACH 6 */
-	{2, 108, grp_1}, /* ACH 7 */
-	{2, 108, grp_0}, /* B0MGQ */
-	{2, 108, grp_0}, /* B0HIQ */
-	{2, 108, grp_1}, /* B1MGQ */
-	{2, 108, grp_1}, /* B1HIQ */
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_stf_8852bt[] = {
+	{8, 256, grp_0}, /* ACH 0 */
+	{8, 256, grp_0}, /* ACH 1 */
+	{8, 256, grp_0}, /* ACH 2 */
+	{8, 256, grp_0}, /* ACH 3 */
+	{8, 256, grp_1}, /* ACH 4 */
+	{8, 256, grp_1}, /* ACH 5 */
+	{8, 256, grp_1}, /* ACH 6 */
+	{8, 256, grp_1}, /* ACH 7 */
+	{8, 256, grp_0}, /* B0MGQ */
+	{8, 256, grp_0}, /* B0HIQ */
+	{8, 256, grp_1}, /* B1MGQ */
+	{8, 256, grp_1}, /* B1HIQ */
 	{40, 0, 0} /* FWCMDQ */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_stf_8851e[] = {
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_stf_8852c[] = {
 	{2, 108, grp_0}, /* ACH 0 */
 	{2, 108, grp_0}, /* ACH 1 */
 	{2, 108, grp_0}, /* ACH 2 */
@@ -410,22 +394,6 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_scc_stf_8852d[] = {
 };
 
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_dbcc_stf_8852c[] = {
-	{2, 76, grp_0}, /* ACH 0 */
-	{2, 76, grp_0}, /* ACH 1 */
-	{2, 76, grp_0}, /* ACH 2 */
-	{2, 76, grp_0}, /* ACH 3 */
-	{2, 76, grp_1}, /* ACH 4 */
-	{2, 76, grp_1}, /* ACH 5 */
-	{2, 76, grp_1}, /* ACH 6 */
-	{2, 76, grp_1}, /* ACH 7 */
-	{2, 76, grp_0}, /* B0MGQ */
-	{2, 76, grp_0}, /* B0HIQ */
-	{2, 76, grp_1}, /* B1MGQ */
-	{2, 76, grp_1}, /* B1HIQ */
-	{40, 0, 0} /* FWCMDQ */
-};
-
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_dbcc_stf_8851e[] = {
 	{2, 76, grp_0}, /* ACH 0 */
 	{2, 76, grp_0}, /* ACH 1 */
 	{2, 76, grp_0}, /* ACH 2 */
@@ -553,23 +521,23 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_la_8851b[] = {
 	{40, 0, 0} /* FWCMDQ */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_la_8852c[] = {
-	{64, 586, grp_0}, /* ACH 0 */
-	{64, 586, grp_0}, /* ACH 1 */
-	{64, 586, grp_0}, /* ACH 2 */
-	{64, 586, grp_0}, /* ACH 3 */
-	{64, 586, grp_1}, /* ACH 4 */
-	{64, 586, grp_1}, /* ACH 5 */
-	{64, 586, grp_1}, /* ACH 6 */
-	{64, 586, grp_1}, /* ACH 7 */
-	{32, 586, grp_0}, /* B0MGQ */
-	{64, 586, grp_0}, /* B0HIQ */
-	{32, 586, grp_1}, /* B1MGQ */
-	{64, 586, grp_1}, /* B1HIQ */
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_la_8852bt[] = {
+	{16, 742, grp_0}, /* ACH 0 */
+	{16, 742, grp_0}, /* ACH 1 */
+	{16, 742, grp_0}, /* ACH 2 */
+	{16, 742, grp_0}, /* ACH 3 */
+	{0, 0, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{0, 0, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{15, 743, grp_0}, /* B0MGQ */
+	{15, 743, grp_0}, /* B0HIQ */
+	{0, 0, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
 	{40, 0, 0} /* FWCMDQ */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_la_8851e[] = {
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_pcie_la_8852c[] = {
 	{64, 586, grp_0}, /* ACH 0 */
 	{64, 586, grp_0}, /* ACH 1 */
 	{64, 586, grp_0}, /* ACH 2 */
@@ -661,6 +629,13 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_8851b_turbo = {
 	0 /* WP threshold */
 };
 
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_8852bt = {
+	958, /* Group 0 */
+	0, /* Group 1 */
+	958, /* Public Max */
+	0 /* WP threshold */
+};
+
 #ifdef PHL_FEATURE_AP
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8852c = {
 	3228, /* Group 0 */
@@ -669,28 +644,14 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8852c = {
 	0 /* WP threshold */
 };
 
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8851e = {
-	3228, /* Group 0 */
-	0, /* Group 1 */
-	3228, /* Public Max */
-	0 /* WP threshold */
-};
-
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8852d = {
-	3228, /* Group 0 */
+	3208, /* Group 0 */
 	0, /* Group 1 */
-	3228, /* Public Max */
+	3208, /* Public Max */
 	0 /* WP threshold */
 };
 #else //for nic mode use
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8852c = {
-	1614, /* Group 0 */
-	1614, /* Group 1 */
-	3228, /* Public Max */
-	0 /* WP threshold */
-};
-
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8851e = {
 	1614, /* Group 0 */
 	1614, /* Group 1 */
 	3228, /* Public Max */
@@ -706,13 +667,6 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_8852d = {
 #endif
 
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_dbcc_8852c = {
-	1609, /* Group 0 */
-	1609, /* Group 1 */
-	3218, /* Public Max */
-	0 /* WP threshold */
-};
-
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_dbcc_8851e = {
 	1609, /* Group 0 */
 	1609, /* Group 1 */
 	3218, /* Public Max */
@@ -747,6 +701,13 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_wd128_8851b = {
 	0 /* WP threshold */
 };
 
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_wd128_8852bt = {
+	1792, /* Group 0 */
+	0, /* Group 1 */
+	1792, /* Public Max */
+	0 /* WP threshold */
+};
+
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_stf_8852a = {
 	256, /* Group 0 */
 	256, /* Group 1 */
@@ -768,6 +729,13 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_stf_8851b = {
 	104 /* WP threshold */
 };
 
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_stf_8852bt = {
+	256, /* Group 0 */
+	256, /* Group 1 */
+	512, /* Public Max */
+	104 /* WP threshold */
+};
+
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_stf_8852c = {
 	108, /* Group 0 */
 	108, /* Group 1 */
@@ -776,20 +744,6 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_stf_8852c = {
 };
 
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_dbcc_stf_8852c = {
-	76, /* Group 0 */
-	76, /* Group 1 */
-	152, /* Public Max */
-	0 /* WP threshold */
-};
-
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_scc_stf_8851e = {
-	108, /* Group 0 */
-	108, /* Group 1 */
-	216, /* Public Max */
-	0 /* WP threshold */
-};
-
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_dbcc_stf_8851e = {
 	76, /* Group 0 */
 	76, /* Group 1 */
 	152, /* Public Max */
@@ -852,14 +806,14 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_la_8851b = {
 	0 /* WP threshold */
 };
 
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_la_8852c = {
-	586, /* Group 0 */
-	586, /* Group 1 */
-	1172, /* Public Max */
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_la_8852bt = {
+	958, /* Group 0 */
+	0, /* Group 1 */
+	958, /* Public Max */
 	0 /* WP threshold */
 };
 
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_la_8851e = {
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_pcie_la_8852c = {
 	586, /* Group 0 */
 	586, /* Group 1 */
 	1172, /* Public Max */
@@ -936,39 +890,6 @@ static struct mac_ax_hfc_prec_cfg hfc_preccfg_pcie_dlfw_8852c = {
 };
 
 static struct mac_ax_hfc_prec_cfg hfc_preccfg_pcie_la_8852c = {
-	2, /*CH 0-11 pre-cost */
-	40, /*H2C pre-cost */
-	0, /* WP CH 0-7 pre-cost */
-	0, /* WP CH 8-11 pre-cost */
-	MAC_AX_HFC_FULL_COND_X2, /* CH 0-11 full condition */
-	MAC_AX_HFC_FULL_COND_X1, /* H2C full condition */
-	MAC_AX_HFC_FULL_COND_X1, /* WP CH 0-7 full condition */
-	MAC_AX_HFC_FULL_COND_X1 /* WP CH 8-11 full condition */
-};
-
-static struct mac_ax_hfc_prec_cfg hfc_preccfg_pcie_stf_8851e = {
-	1, /*CH 0-11 pre-cost */
-	40, /*H2C pre-cost */
-	48, /* WP CH 0-7 pre-cost */
-	48, /* WP CH 8-11 pre-cost */
-	MAC_AX_HFC_FULL_COND_X2, /* CH 0-11 full condition */
-	MAC_AX_HFC_FULL_COND_X1, /* H2C full condition */
-	MAC_AX_HFC_FULL_COND_X1, /* WP CH 0-7 full condition */
-	MAC_AX_HFC_FULL_COND_X1 /* WP CH 8-11 full condition */
-};
-
-static struct mac_ax_hfc_prec_cfg hfc_preccfg_pcie_dlfw_8851e = {
-	0, /*CH 0-11 pre-cost */
-	256, /*H2C pre-cost */
-	0, /* WP CH 0-7 pre-cost */
-	0, /* WP CH 8-11 pre-cost */
-	MAC_AX_HFC_FULL_COND_X2, /* CH 0-11 full condition */
-	MAC_AX_HFC_FULL_COND_X2, /* H2C full condition */
-	MAC_AX_HFC_FULL_COND_X1, /* WP CH 0-7 full condition */
-	MAC_AX_HFC_FULL_COND_X1 /* WP CH 8-11 full condition */
-};
-
-static struct mac_ax_hfc_prec_cfg hfc_preccfg_pcie_la_8851e = {
 	2, /*CH 0-11 pre-cost */
 	40, /*H2C pre-cost */
 	0, /* WP CH 0-7 pre-cost */
@@ -1094,29 +1015,6 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_dbcc_8852c = {
 	0 /* WP threshold */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_dbcc_8851e[] = {
-	{24, 164, grp_0}, /* ACH 0 */
-	{0, 0, grp_0}, /* ACH 1 */
-	{24, 164, grp_0}, /* ACH 2 */
-	{0, 0, grp_0}, /* ACH 3 */
-	{24, 164, grp_1}, /* ACH 4 */
-	{0, 0, grp_1}, /* ACH 5 */
-	{24, 164, grp_1}, /* ACH 6 */
-	{0, 0, grp_1}, /* ACH 7 */
-	{24, 164, grp_0}, /* B0MGQ */
-	{0, 0, grp_0}, /* B0HIQ */
-	{24, 164, grp_1}, /* B1MGQ */
-	{0, 0, grp_1}, /* B1HIQ */
-	{0, 0, 0} /* FWCMDQ */
-};
-
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_dbcc_8851e = {
-	164, /* Group 0 */
-	164, /* Group 1 */
-	328, /* Public Max */
-	0 /* WP threshold */
-};
-
 static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_dbcc_8852d[] = {
 	{24, 164, grp_0}, /* ACH 0 */
 	{0, 0, grp_0}, /* ACH 1 */
@@ -1220,34 +1118,50 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_scc_turbo_8851b[] = {
 	{0, 0, 0} /* FWCMDQ */
 };
 
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_scc_8852c[] = {
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_scc_8852bt[] = {
 	{18, 344, grp_0}, /* ACH 0 */
-	{0, 0, grp_0}, /* ACH 1 */
+	{18, 344, grp_0}, /* ACH 1 */
 	{18, 344, grp_0}, /* ACH 2 */
-	{0, 0, grp_0}, /* ACH 3 */
-	{18, 344, grp_0}, /* ACH 4 */
-	{0, 0, grp_0}, /* ACH 5 */
-	{18, 344, grp_0}, /* ACH 6 */
-	{0, 0, grp_0}, /* ACH 7 */
-	{18, 344, grp_0}, /* B0MGQ */
-	{0, 0, grp_0}, /* B0HIQ */
-	{18, 344, grp_0}, /* B1MGQ */
-	{0, 0, grp_0}, /* B1HIQ */
-	{0, 0, 0} /* FWCMDQ */
-};
-
-static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_scc_8851e[] = {
-	{18, 156, grp_0}, /* ACH 0 */
-	{0, 0, grp_0}, /* ACH 1 */
-	{18, 156, grp_0}, /* ACH 2 */
-	{0, 0, grp_0}, /* ACH 3 */
+	{18, 344, grp_0}, /* ACH 3 */
 	{0, 0, grp_0}, /* ACH 4 */
 	{0, 0, grp_0}, /* ACH 5 */
 	{0, 0, grp_0}, /* ACH 6 */
 	{0, 0, grp_0}, /* ACH 7 */
-	{18, 156, grp_0}, /* B0MGQ */
-	{0, 0, grp_0}, /* B0HIQ */
+	{18, 344, grp_0}, /* B0MGQ */
+	{18, 344, grp_0}, /* B0HIQ */
 	{0, 0, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
+	{0, 0, 0} /* FWCMDQ */
+};
+
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_scc_turbo_8852bt[] = {
+	{18, 344, grp_0}, /* ACH 0 */
+	{18, 344, grp_0}, /* ACH 1 */
+	{18, 344, grp_0}, /* ACH 2 */
+	{18, 344, grp_0}, /* ACH 3 */
+	{0, 0, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{0, 0, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{18, 344, grp_0}, /* B0MGQ */
+	{18, 344, grp_0}, /* B0HIQ */
+	{0, 0, grp_0}, /* B1MGQ */
+	{0, 0, grp_0}, /* B1HIQ */
+	{0, 0, 0} /* FWCMDQ */
+};
+
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_usb_scc_8852c[] = {
+	{24, 412, grp_0}, /* ACH 0 */
+	{0, 0, grp_0}, /* ACH 1 */
+	{24, 412, grp_0}, /* ACH 2 */
+	{0, 0, grp_0}, /* ACH 3 */
+	{24, 412, grp_0}, /* ACH 4 */
+	{0, 0, grp_0}, /* ACH 5 */
+	{24, 412, grp_0}, /* ACH 6 */
+	{0, 0, grp_0}, /* ACH 7 */
+	{24, 412, grp_0}, /* B0MGQ */
+	{0, 0, grp_0}, /* B0HIQ */
+	{24, 412, grp_0}, /* B1MGQ */
 	{0, 0, grp_0}, /* B1HIQ */
 	{0, 0, 0} /* FWCMDQ */
 };
@@ -1303,17 +1217,24 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_scc_turbo_8851b = {
 	0 /* WP threshold */
 };
 
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_scc_8852c = {
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_scc_8852bt = {
 	344, /* Group 0 */
 	0, /* Group 1 */
 	344, /* Public Max */
 	0 /* WP threshold */
 };
 
-static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_scc_8851e = {
-	156, /* Group 0 */
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_scc_turbo_8852bt = {
+	344, /* Group 0 */
 	0, /* Group 1 */
-	156, /* Public Max */
+	344, /* Public Max */
+	0 /* WP threshold */
+};
+
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_usb_scc_8852c = {
+	412, /* Group 0 */
+	0, /* Group 1 */
+	412, /* Public Max */
 	0 /* WP threshold */
 };
 
@@ -1346,6 +1267,17 @@ static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8852b = {
 	MAC_AX_HFC_FULL_COND_X2 /* WP CH 8-11 full condition */
 };
 
+static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_logo_8852b = {
+	9, /*CH 0-11 pre-cost */
+	32, /*H2C pre-cost */
+	25, /* WP CH 0-7 pre-cost */
+	24, /* WP CH 8-11 pre-cost */
+	MAC_AX_HFC_FULL_COND_X2, /* CH 0-11 full condition */
+	MAC_AX_HFC_FULL_COND_X2, /* H2C full condition */
+	MAC_AX_HFC_FULL_COND_X2, /* WP CH 0-7 full condition */
+	MAC_AX_HFC_FULL_COND_X2 /* WP CH 8-11 full condition */
+};
+
 static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8851b = {
 	9, /*CH 0-11 pre-cost */
 	32, /*H2C pre-cost */
@@ -1357,7 +1289,7 @@ static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8851b = {
 	MAC_AX_HFC_FULL_COND_X2 /* WP CH 8-11 full condition */
 };
 
-static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8852c = {
+static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8852bt = {
 	9, /*CH 0-11 pre-cost */
 	32, /*H2C pre-cost */
 	48, /* WP CH 0-7 pre-cost */
@@ -1368,11 +1300,11 @@ static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8852c = {
 	MAC_AX_HFC_FULL_COND_X2 /* WP CH 8-11 full condition */
 };
 
-static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8851e = {
+static struct mac_ax_hfc_prec_cfg hfc_preccfg_usb_8852c = {
 	9, /*CH 0-11 pre-cost */
 	32, /*H2C pre-cost */
-	64, /* WP CH 0-7 pre-cost */
-	24, /* WP CH 8-11 pre-cost */
+	148, /* WP CH 0-7 pre-cost */
+	148, /* WP CH 8-11 pre-cost */
 	MAC_AX_HFC_FULL_COND_X2, /* CH 0-11 full condition */
 	MAC_AX_HFC_FULL_COND_X2, /* H2C full condition */
 	MAC_AX_HFC_FULL_COND_X2, /* WP CH 0-7 full condition */
@@ -1486,6 +1418,22 @@ static struct mac_ax_hfc_ch_cfg hfc_chcfg_sdio_8851b[] = {
 	{40, 0, 0} /* H2CQ */
 };
 
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_sdio_8852bt[] = {
+	{2, 102, grp_0}, /* ACH 0 */
+	{2, 102, grp_0}, /* ACH 1 */
+	{2, 102, grp_0}, /* ACH 2 */
+	{2, 102, grp_0}, /* ACH 3 */
+	{0, 0, grp_1}, /* ACH 4 */
+	{0, 0, grp_1}, /* ACH 5 */
+	{0, 0, grp_1}, /* ACH 6 */
+	{0, 0, grp_1}, /* ACH 7 */
+	{2, 102, grp_0}, /* B0MGQ */
+	{2, 102, grp_0}, /* B0HIQ */
+	{0, 0, grp_1}, /* B1MGQ */
+	{0, 0, grp_1}, /* B1HIQ */
+	{40, 0, 0} /* H2CQ */
+};
+
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_sdio_8852a = {
 	512, /* Group 0 */
 	0, /* Group 1 */
@@ -1501,6 +1449,13 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_sdio_8852b = {
 };
 
 static struct mac_ax_hfc_pub_cfg hfc_pubcfg_sdio_8851b = {
+	112, /* Group 0 */
+	0, /* Group 1 */
+	112, /* Public Max */
+	0 /* WP threshold */
+};
+
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_sdio_8852bt = {
 	112, /* Group 0 */
 	0, /* Group 1 */
 	112, /* Public Max */
@@ -1599,6 +1554,30 @@ static struct mac_ax_hfc_pub_cfg hfc_pubcfg_la_sdio_8851b = {
 	0 /* WP threshold */
 };
 
+
+static struct mac_ax_hfc_ch_cfg hfc_chcfg_la_sdio_8852bt[] = {
+	{2, 102, grp_0}, /* ACH 0 */
+	{2, 102, grp_0}, /* ACH 1 */
+	{2, 102, grp_0}, /* ACH 2 */
+	{2, 102, grp_0}, /* ACH 3 */
+	{0, 0, grp_1}, /* ACH 4 */
+	{0, 0, grp_1}, /* ACH 5 */
+	{0, 0, grp_1}, /* ACH 6 */
+	{0, 0, grp_1}, /* ACH 7 */
+	{2, 102, grp_0}, /* B0MGQ */
+	{2, 102, grp_0}, /* B0HIQ */
+	{0, 0, grp_1}, /* B1MGQ */
+	{0, 0, grp_1}, /* B1HIQ */
+	{40, 0, 0} /* H2CQ */
+};
+
+static struct mac_ax_hfc_pub_cfg hfc_pubcfg_la_sdio_8852bt = {
+	112, /* Group 0 */
+	0, /* Group 1 */
+	112, /* Public Max */
+	0 /* WP threshold */
+};
+
 static struct mac_ax_hfc_prec_cfg hfc_preccfg_sdio = {
 	1, /*CH 0-11 pre-cost */
 	40, /*H2C pre-cost */
@@ -1628,7 +1607,7 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 	pub_info = param->pub_info;
 	prec_cfg = param->prec_cfg;
 
-	switch (adapter->hw_info->intf) {
+	switch (adapter->env_info.intf) {
 #if MAC_AX_SDIO_SUPPORT
 	case MAC_AX_INTF_SDIO:
 		param->en = 0;
@@ -1693,6 +1672,24 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 			default:
 				return MACHFCCH011QTA;
 			}
+		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
+			switch (adapter->dle_info.qta_mode) {
+			case MAC_AX_QTA_SCC:
+			case MAC_AX_QTA_SCC_TURBO:
+				ch_cfg_ini = hfc_chcfg_sdio_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_sdio_8852bt;
+				break;
+			case MAC_AX_QTA_DLFW:
+				ch_cfg_ini = NULL;
+				pub_cfg_ini = NULL;
+				break;
+			case MAC_AX_QTA_LAMODE:
+				ch_cfg_ini = hfc_chcfg_la_sdio_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_la_sdio_8852bt;
+				break;
+			default:
+				return MACHFCCH011QTA;
+			}
 		} else {
 			return MACCHIPID;
 		}
@@ -1739,6 +1736,11 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 				ch_cfg_ini = hfc_chcfg_usb_scc_turbo_8852b;
 				pub_cfg_ini = &hfc_pubcfg_usb_scc_turbo_8852b;
 				prec_cfg_ini = &hfc_preccfg_usb_8852b;
+				break;
+			case MAC_AX_QTA_SCC_LOGO:
+				ch_cfg_ini = hfc_chcfg_usb_scc_turbo_8852b;
+				pub_cfg_ini = &hfc_pubcfg_usb_scc_turbo_8852b;
+				prec_cfg_ini = &hfc_preccfg_usb_logo_8852b;
 				break;
 			case MAC_AX_QTA_DLFW:
 				ch_cfg_ini = NULL;
@@ -1790,6 +1792,11 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 				pub_cfg_ini = NULL;
 				prec_cfg_ini = &hfc_preccfg_usb_8852c;
 				break;
+			case MAC_AX_QTA_LAMODE:
+				ch_cfg_ini = hfc_chcfg_usb_scc_8852c;
+				pub_cfg_ini = &hfc_pubcfg_usb_scc_8852c;
+				prec_cfg_ini = &hfc_preccfg_usb_8852c;
+				break;
 			default:
 				return MACHFCCH011QTA;
 			}
@@ -1813,26 +1820,6 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 			default:
 				return MACHFCCH011QTA;
 			}
-		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8851E)) {
-			switch (adapter->dle_info.qta_mode) {
-			case MAC_AX_QTA_SCC:
-				ch_cfg_ini = hfc_chcfg_usb_scc_8851e;
-				pub_cfg_ini = &hfc_pubcfg_usb_scc_8851e;
-				prec_cfg_ini = &hfc_preccfg_usb_8851e;
-				break;
-			case MAC_AX_QTA_DBCC:
-				ch_cfg_ini = hfc_chcfg_usb_dbcc_8851e;
-				pub_cfg_ini = &hfc_pubcfg_usb_dbcc_8851e;
-				prec_cfg_ini = &hfc_preccfg_usb_8851e;
-				break;
-			case MAC_AX_QTA_DLFW:
-				ch_cfg_ini = NULL;
-				pub_cfg_ini = NULL;
-				prec_cfg_ini = &hfc_preccfg_usb_8851e;
-				break;
-			default:
-				return MACHFCCH011QTA;
-			}
 		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852D)) {
 			switch (adapter->dle_info.qta_mode) {
 			case MAC_AX_QTA_SCC:
@@ -1849,6 +1836,31 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 				ch_cfg_ini = NULL;
 				pub_cfg_ini = NULL;
 				prec_cfg_ini = &hfc_preccfg_usb_8852d;
+				break;
+			case MAC_AX_QTA_LAMODE:
+				ch_cfg_ini = hfc_chcfg_usb_scc_8852c;
+				pub_cfg_ini = &hfc_pubcfg_usb_scc_8852c;
+				prec_cfg_ini = &hfc_preccfg_usb_8852d;
+				break;
+			default:
+				return MACHFCCH011QTA;
+			}
+		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
+			switch (adapter->dle_info.qta_mode) {
+			case MAC_AX_QTA_SCC:
+				ch_cfg_ini = hfc_chcfg_usb_scc_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_usb_scc_8852bt;
+				prec_cfg_ini = &hfc_preccfg_usb_8852bt;
+				break;
+			case MAC_AX_QTA_SCC_TURBO:
+				ch_cfg_ini = hfc_chcfg_usb_scc_turbo_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_usb_scc_turbo_8852bt;
+				prec_cfg_ini = &hfc_preccfg_usb_8852bt;
+				break;
+			case MAC_AX_QTA_DLFW:
+				ch_cfg_ini = NULL;
+				pub_cfg_ini = NULL;
+				prec_cfg_ini = &hfc_preccfg_usb_8852bt;
 				break;
 			default:
 				return MACHFCCH011QTA;
@@ -2039,47 +2051,6 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 			default:
 				return MACHFCCH011QTA;
 			}
-		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8851E)) {
-			switch (adapter->dle_info.qta_mode) {
-			case MAC_AX_QTA_DBCC:
-				param->mode = MAC_AX_HCIFC_POH;
-				ch_cfg_ini = hfc_chcfg_pcie_dbcc_8851e;
-				pub_cfg_ini = &hfc_pubcfg_pcie_dbcc_8851e;
-				prec_cfg_ini = &hfc_preccfg_pcie;
-				break;
-			case MAC_AX_QTA_SCC:
-				param->mode = MAC_AX_HCIFC_POH;
-				ch_cfg_ini = hfc_chcfg_pcie_scc_8851e;
-				pub_cfg_ini = &hfc_pubcfg_pcie_scc_8851e;
-				prec_cfg_ini = &hfc_preccfg_pcie;
-				break;
-			case MAC_AX_QTA_SCC_STF:
-				param->mode = MAC_AX_HCIFC_STF;
-				ch_cfg_ini = hfc_chcfg_pcie_scc_stf_8851e;
-				pub_cfg_ini = &hfc_pubcfg_pcie_scc_stf_8851e;
-				prec_cfg_ini = &hfc_preccfg_pcie_stf_8851e;
-				break;
-			case MAC_AX_QTA_DBCC_STF:
-				param->mode = MAC_AX_HCIFC_STF;
-				ch_cfg_ini = hfc_chcfg_pcie_dbcc_stf_8851e;
-				pub_cfg_ini = &hfc_pubcfg_pcie_dbcc_stf_8851e;
-				prec_cfg_ini = &hfc_preccfg_pcie_stf_8851e;
-				break;
-			case MAC_AX_QTA_DLFW:
-				param->mode = MAC_AX_HCIFC_POH;
-				ch_cfg_ini = NULL;
-				pub_cfg_ini = NULL;
-				prec_cfg_ini = &hfc_preccfg_pcie_dlfw_8851e;
-				break;
-			case MAC_AX_QTA_LAMODE:
-				param->mode = MAC_AX_HCIFC_POH;
-				ch_cfg_ini = hfc_chcfg_pcie_la_8851e;
-				pub_cfg_ini = &hfc_pubcfg_pcie_la_8851e;
-				prec_cfg_ini = &hfc_preccfg_pcie_la_8851e;
-				break;
-			default:
-				return MACHFCCH011QTA;
-			}
 		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852D)) {
 			switch (adapter->dle_info.qta_mode) {
 			case MAC_AX_QTA_DBCC:
@@ -2117,6 +2088,36 @@ u32 hfc_reset_param(struct mac_ax_adapter *adapter)
 				ch_cfg_ini = hfc_chcfg_pcie_la_8852d;
 				pub_cfg_ini = &hfc_pubcfg_pcie_la_8852d;
 				prec_cfg_ini = &hfc_preccfg_pcie_la_8852d;
+				break;
+			default:
+				return MACHFCCH011QTA;
+			}
+		} else if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
+			switch (adapter->dle_info.qta_mode) {
+			case MAC_AX_QTA_SCC:
+			case MAC_AX_QTA_SCC_TURBO:
+				param->mode = MAC_AX_HCIFC_POH;
+				ch_cfg_ini = hfc_chcfg_pcie_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_pcie_8852bt;
+				prec_cfg_ini = &hfc_preccfg_pcie;
+				break;
+			case MAC_AX_QTA_SCC_STF:
+				param->mode = MAC_AX_HCIFC_STF;
+				ch_cfg_ini = hfc_chcfg_pcie_stf_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_pcie_stf_8852bt;
+				prec_cfg_ini = &hfc_preccfg_pcie_stf;
+				break;
+			case MAC_AX_QTA_DLFW:
+				param->mode = MAC_AX_HCIFC_POH;
+				ch_cfg_ini = NULL;
+				pub_cfg_ini = NULL;
+				prec_cfg_ini = &hfc_preccfg_pcie;
+				break;
+			case MAC_AX_QTA_LAMODE:
+				param->mode = MAC_AX_HCIFC_POH;
+				ch_cfg_ini = hfc_chcfg_pcie_la_8852bt;
+				pub_cfg_ini = &hfc_pubcfg_pcie_la_8852bt;
+				prec_cfg_ini = &hfc_preccfg_pcie;
 				break;
 			default:
 				return MACHFCCH011QTA;
@@ -2311,20 +2312,12 @@ u32 hfc_init(struct mac_ax_adapter *adapter, u8 rst, u8 en, u8 h2c_en)
 	}
 
 	for (ch = MAC_AX_DMA_ACH0; ch < MAC_AX_DMA_H2C; ch++) {
-#if MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8192XB_SUPPORT
+#if MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852BT_SUPPORT
 		if ((is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
 		     is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
-		     is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB)) &&
+		     is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB) ||
+		     is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) &&
 		    (ch == MAC_AX_DMA_ACH4 || ch == MAC_AX_DMA_ACH5 ||
-		     ch == MAC_AX_DMA_ACH6 || ch == MAC_AX_DMA_ACH7 ||
-		     ch == MAC_AX_DMA_B1MG || ch == MAC_AX_DMA_B1HI))
-			continue;
-#endif
-
-#if MAC_AX_8851E_SUPPORT
-		if (is_chip_id(adapter, MAC_AX_CHIP_ID_8851E) &&
-		    (ch == MAC_AX_DMA_ACH1 || ch == MAC_AX_DMA_ACH3 ||
-		     ch == MAC_AX_DMA_ACH4 || ch == MAC_AX_DMA_ACH5 ||
 		     ch == MAC_AX_DMA_ACH6 || ch == MAC_AX_DMA_ACH7 ||
 		     ch == MAC_AX_DMA_B1MG || ch == MAC_AX_DMA_B1HI))
 			continue;
@@ -2350,20 +2343,12 @@ u32 hfc_init(struct mac_ax_adapter *adapter, u8 rst, u8 en, u8 h2c_en)
 		PLTFM_DELAY_US(10);
 	}
 	for (ch = MAC_AX_DMA_ACH0; ch < MAC_AX_DMA_H2C; ch++) {
-#if MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8192XB_SUPPORT
+#if MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852BT_SUPPORT
 		if ((is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
 		     is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
-		     is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB)) &&
+		     is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB) ||
+		     is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) &&
 		    (ch == MAC_AX_DMA_ACH4 || ch == MAC_AX_DMA_ACH5 ||
-		     ch == MAC_AX_DMA_ACH6 || ch == MAC_AX_DMA_ACH7 ||
-		     ch == MAC_AX_DMA_B1MG || ch == MAC_AX_DMA_B1HI))
-			continue;
-#endif
-
-#if MAC_AX_8851E_SUPPORT
-		if (is_chip_id(adapter, MAC_AX_CHIP_ID_8851E) &&
-		    (ch == MAC_AX_DMA_ACH1 || ch == MAC_AX_DMA_ACH3 ||
-		     ch == MAC_AX_DMA_ACH4 || ch == MAC_AX_DMA_ACH5 ||
 		     ch == MAC_AX_DMA_ACH6 || ch == MAC_AX_DMA_ACH7 ||
 		     ch == MAC_AX_DMA_B1MG || ch == MAC_AX_DMA_B1HI))
 			continue;
@@ -2382,24 +2367,48 @@ u32 hfc_info_init(struct mac_ax_adapter *adapter)
 	adapter->hfc_param =
 		(struct mac_ax_hfc_param *)
 		PLTFM_MALLOC(sizeof(struct mac_ax_hfc_param));
+	if (!adapter->hfc_param) {
+		PLTFM_MSG_ERR("%s malloc hfc_param fail\n", __func__);
+		return MACNOBUF;
+	}
 
 	adapter->hfc_param->ch_cfg =
 		(struct mac_ax_hfc_ch_cfg *)PLTFM_MALLOC(chcfg_size);
+	if (!adapter->hfc_param->ch_cfg) {
+		PLTFM_MSG_ERR("%s malloc ch_cfg fail\n", __func__);
+		return MACNOBUF;
+	}
 
 	adapter->hfc_param->ch_info =
 		(struct mac_ax_hfc_ch_info *)PLTFM_MALLOC(chinfo_size);
+	if (!adapter->hfc_param->ch_info) {
+		PLTFM_MSG_ERR("%s malloc ch_info fail\n", __func__);
+		return MACNOBUF;
+	}
 
 	adapter->hfc_param->pub_cfg =
 		(struct mac_ax_hfc_pub_cfg *)
 		PLTFM_MALLOC(sizeof(struct mac_ax_hfc_pub_cfg));
+	if (!adapter->hfc_param->pub_cfg) {
+		PLTFM_MSG_ERR("%s malloc pub_cfg fail\n", __func__);
+		return MACNOBUF;
+	}
 
 	adapter->hfc_param->pub_info =
 		(struct mac_ax_hfc_pub_info *)
 		PLTFM_MALLOC(sizeof(struct mac_ax_hfc_pub_info));
+	if (!adapter->hfc_param->pub_info) {
+		PLTFM_MSG_ERR("%s malloc pub_info fail\n", __func__);
+		return MACNOBUF;
+	}
 
 	adapter->hfc_param->prec_cfg =
 		(struct mac_ax_hfc_prec_cfg *)
 		PLTFM_MALLOC(sizeof(struct mac_ax_hfc_prec_cfg));
+	if (!adapter->hfc_param->prec_cfg) {
+		PLTFM_MSG_ERR("%s malloc prec_cfg fail\n", __func__);
+		return MACNOBUF;
+	}
 
 	adapter->hfc_param->en = 0;
 	adapter->hfc_param->h2c_en = 0;

@@ -34,7 +34,8 @@ u8 _pltfm_sdio_cmd53_r8(struct mac_ax_adapter *adapter, u32 adr)
 
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		if (!(adr >= R_AX_CMAC_FUNC_EN && adr <= R_AX_CMAC_REG_END))
 			return PLTFM_SDIO_CMD53_R8(adr);
 	} else {
@@ -67,7 +68,8 @@ u16 _pltfm_sdio_cmd53_r16(struct mac_ax_adapter *adapter, u32 adr)
 
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		if (!(adr >= R_AX_CMAC_FUNC_EN && adr <= R_AX_CMAC_REG_END))
 			return PLTFM_SDIO_CMD53_R16(adr);
 	} else {
@@ -95,7 +97,8 @@ u32 _pltfm_sdio_cmd53_r32(struct mac_ax_adapter *adapter, u32 adr)
 
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		if (!(adr >= R_AX_CMAC_FUNC_EN && adr <= R_AX_CMAC_REG_END))
 			return PLTFM_SDIO_CMD53_R32(adr);
 	} else {
@@ -435,7 +438,7 @@ u32 sdio_init(struct mac_ax_adapter *adapter, void *param)
 	u32 val32;
 	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
 
-	if (adapter->hw_info->intf != MAC_AX_INTF_SDIO)
+	if (adapter->env_info.intf != MAC_AX_INTF_SDIO)
 		return MACINTF;
 
 	val32 = MAC_REG_R32(R_AX_RXDMA_SETTING);
@@ -579,7 +582,8 @@ u32 r_indir_cmd53_sdio(struct mac_ax_adapter *adapter, u32 adr)
 
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
 	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		if (!(adr >= R_AX_CMAC_FUNC_EN && adr <= R_AX_CMAC_REG_END))
 			return p_ops->_r_indir_cmd53_sdio(adapter, adr);
 	} else {
@@ -666,12 +670,11 @@ u8 pwr_state_chk_sdio(struct mac_ax_adapter *adapter)
 
 u8 reg_chk_sdio(struct mac_ax_adapter *adapter, u32 adr)
 {
-	u8 chip_id = adapter->hw_info->chip_id;
+	u8 chip_id = adapter->drv_info->sw_chip_id;
 
 	switch (chip_id) {
 	case MAC_AX_CHIP_ID_8852C:
 	case MAC_AX_CHIP_ID_8192XB:
-	case MAC_AX_CHIP_ID_8851E:
 	case MAC_AX_CHIP_ID_8852D:
 		if (adr >= SDIO_LOCAL_REG_START_V1 &&
 		    adr < SDIO_LOCAL_REG_END_V1)
@@ -696,15 +699,14 @@ void chk_rqd_pg_num(struct mac_ax_adapter *adapter,
 		    struct mac_ax_sdio_tx_info *tx_info)
 {
 	u32 ple_rqd = 0;
-	u16 wde_rqd = 0;
+	u32 wde_rqd = 0;
 	u16 *pkt_size = tx_info->pkt_size;
 	u8 *wp_offset = tx_info->wp_offset;
-	u16 ple_pg_size = adapter->dle_info.ple_pg_size;
-	u16 wde_pg_size = adapter->dle_info.wde_pg_size;
+	u32 ple_pg_size = adapter->dle_info.ple_pg_size;
+	u32 wde_pg_size = adapter->dle_info.wde_pg_size;
 	u8 ple_rsvd_size = adapter->hw_info->ple_rsvd_space;
 	u8 pd_size = adapter->hw_info->payload_desc_size;
-	u16 size;
-	u32 ple_pg_size_sh;
+	u32 ple_pg_size_sh, size;
 	u8 dma_txagg_num, i;
 
 	ple_pg_size_sh = get_pg_size_pow(ple_pg_size);
@@ -852,18 +854,18 @@ u32 ltr_set_sdio(struct mac_ax_adapter *adapter,
 u32 ctrl_txdma_ch_sdio(struct mac_ax_adapter *adapter,
 		       struct mac_ax_txdma_ch_map *ch_map)
 {
-	return MACNOTSUP;
+	return MACSUCCESS;
 }
 
 u32 clr_idx_all_sdio(struct mac_ax_adapter *adapter)
 {
-	return MACNOTSUP;
+	return MACSUCCESS;
 }
 
 u32 poll_txdma_ch_idle_sdio(struct mac_ax_adapter *adapter,
 			    struct mac_ax_txdma_ch_map *ch_map)
 {
-	return MACNOTSUP;
+	return MACSUCCESS;
 }
 
 u32 set_pcie_speed_sdio(struct mac_ax_adapter *adapter,
@@ -878,6 +880,11 @@ u32 get_pcie_speed_sdio(struct mac_ax_adapter *adapter,
 	return MACNOTSUP;
 }
 
+u32 get_pcie_sup_speed_sdio(struct mac_ax_adapter *adapter)
+{
+	return MACNOTSUP;
+}
+
 u32 poll_rxdma_ch_idle_sdio(struct mac_ax_adapter *adapter,
 			    struct mac_ax_rxdma_ch_map *ch_map)
 {
@@ -886,12 +893,12 @@ u32 poll_rxdma_ch_idle_sdio(struct mac_ax_adapter *adapter,
 
 u32 ctrl_txhci_sdio(struct mac_ax_adapter *adapter, enum mac_ax_func_sw en)
 {
-	return MACNOTSUP;
+	return MACSUCCESS;
 }
 
 u32 ctrl_rxhci_sdio(struct mac_ax_adapter *adapter, enum mac_ax_func_sw en)
 {
-	return MACNOTSUP;
+	return MACSUCCESS;
 }
 
 u32 ctrl_dma_io_sdio(struct mac_ax_adapter *adapter, enum mac_ax_func_sw en)
@@ -970,4 +977,18 @@ static u16 _patch_fs_enuf(struct mac_ax_adapter *adapter,
 	return wde_aval;
 }
 
+u32 ctrl_txdma_sdio(struct mac_ax_adapter *adapter, u8 opt)
+{
+	return MACSUCCESS;
+}
+
+u32 poll_txdma_idle_sdio(struct mac_ax_adapter *adapter)
+{
+	return MACSUCCESS;
+}
+
+u32 clr_hci_trx_sdio(struct mac_ax_adapter *adapter)
+{
+	return MACSUCCESS;
+}
 #endif /*MAC_AX_SDIO_SUPPORT*/

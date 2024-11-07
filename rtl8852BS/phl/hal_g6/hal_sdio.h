@@ -27,7 +27,7 @@ void hal_sdio_set_io_ops(struct rtw_hal_com_t *h, struct hal_io_ops *pops);
 #include "rtl8852a/rtl8852a.h"
 #endif
 
-#if defined(CONFIG_RTL8852B) || defined(CONFIG_RTL8852BP)
+#if defined(CONFIG_RTL8852B) || defined(CONFIG_RTL8852BP) || defined(CONFIG_RTL8852BT)
 #include "rtl8852b/rtl8852b.h"
 #endif
 
@@ -49,9 +49,10 @@ static inline void hal_set_ops_sdio(struct rtw_phl_com_t *phl_com,
 	}
 	#endif
 
-	#if defined(CONFIG_RTL8852B) || defined(CONFIG_RTL8852BP)
+	#if defined(CONFIG_RTL8852B) || defined(CONFIG_RTL8852BP) || defined(CONFIG_RTL8852BT)
 	if (hal_get_chip_id(hal->hal_com) == CHIP_WIFI6_8852B ||
-	    hal_get_chip_id(hal->hal_com) == CHIP_WIFI6_8852BP) {
+	    hal_get_chip_id(hal->hal_com) == CHIP_WIFI6_8852BP ||
+		hal_get_chip_id(hal->hal_com) == CHIP_WIFI6_8852BT) {
 		hal_set_ops_8852bs(phl_com, hal);
 		hal_hook_trx_ops_8852bs(hal);
 	}

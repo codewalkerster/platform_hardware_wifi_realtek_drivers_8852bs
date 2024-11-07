@@ -25,7 +25,6 @@
 #ifndef __HALBB_IC_SW_INFO_H__
 #define __HALBB_IC_SW_INFO_H__
 
-
 #define HLABB_CODE_BASE			"HALBB_029C"
 #define HLABB_CODE_BASE_NUM		29
 

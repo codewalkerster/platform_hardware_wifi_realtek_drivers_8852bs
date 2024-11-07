@@ -53,7 +53,7 @@ struct phl_cmd_obj {
 };
 
 
-#define DBG_CMD_SYNC
+/*#define DBG_CMD_SYNC*/
 
 #ifdef DBG_CMD_SYNC
 static void _phl_cmd_sync_dump(struct phl_cmd_sync *cmd_sync, const char *caller)
@@ -195,11 +195,13 @@ _phl_cmd_general_pre_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 
 static u8 _skip_normal_hw_watchdog(struct phl_info_t *phl_info)
 {
+#ifdef CONFIG_PHL_CHSWOFLD
 	struct rtw_phl_com_t *phl_com = phl_info->phl_com;
 	struct chsw_ofld_info_t *chsw_ofld_info = &phl_com->chsw_ofld_info;
 
 	if (chsw_ofld_info->chsw_ofld_en && chsw_ofld_info->skip_normal_watchdog)
 		return true;
+#endif
 
 	return false;
 }
@@ -262,28 +264,17 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 	}
 	break;
 	case MSG_EVT_SW_WATCHDOG:
-		if (IS_MSG_FAIL(msg->msg_id))
-			psts = RTW_PHL_STATUS_FAILURE;
-		else if (IS_MSG_CANCEL(msg->msg_id))
-			psts = RTW_PHL_STATUS_FAILURE;
-		else
-			psts = RTW_PHL_STATUS_SUCCESS;
 		psts = phl_watchdog_sw_cmd_hdl(phl_info, psts);
 	break;
 	case MSG_EVT_HW_WATCHDOG:
 	{
-		if (IS_MSG_CANNOT_IO(msg->msg_id))
-			psts = RTW_PHL_STATUS_CANNOT_IO;
-		else if (IS_MSG_FAIL(msg->msg_id))
-			psts = RTW_PHL_STATUS_FAILURE;
-		else if (IS_MSG_CANCEL(msg->msg_id))
-			psts = RTW_PHL_STATUS_FAILURE;
-		else
-			psts = RTW_PHL_STATUS_SUCCESS;
 		if (_skip_normal_hw_watchdog(phl_info)) {
 			rtw_hal_simple_watchdog(phl_info->hal, false);
 			psts = RTW_PHL_STATUS_SUCCESS;
 		} else {
+#ifdef CONFIG_POST_CORE_KEEP_ALIVE
+			psts = phl_keep_alive_hdl(phl_info);
+#endif
 			psts = phl_watchdog_hw_cmd_hdl(phl_info, psts);
 		}
 	}
@@ -299,6 +290,18 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 	case MSG_EVT_GET_USB_SW_ABILITY:
 		psts = phl_get_usb_support_ability(phl_info, (u32*)(phl_cmd->buf));
 	break;
+#ifdef CONFIG_PHL_CUSTOM_FEATURE_USB
+	case MSG_EVT_SET_USB_SW_ABILITY:
+		psts = phl_cmd_set_usb_support_ability(phl_info, *(u32*)(phl_cmd->buf));
+	break;
+#endif
+	case MSG_EVT_GET_USB_MODE_STATUS:
+		psts = phl_cmd_get_usb_mode_status(phl_info, (u32*)(phl_cmd->buf));
+	break;
+	case MSG_EVT_GET_U3_PERF_MODE:
+		psts = phl_cmd_get_u3_perf_mode(phl_info, (u32*)(phl_cmd->buf));
+	break;
+
 #endif
 	case MSG_EVT_HWSEQ_GET_HW_SEQUENCE:
 		psts = phl_cmd_get_hwseq_hdl(phl_info, phl_cmd->buf);
@@ -311,6 +314,9 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 	break;
 	case MSG_EVT_UPDT_EXT_TXPWR_LMT:
 		psts = phl_cmd_updt_ext_txpwr_lmt(phl_info, phl_cmd->buf);
+	break;
+	case MSG_EVT_SET_TAS_EN:
+		psts = phl_cmd_set_tas_en(phl_info, phl_cmd->buf);
 	break;
 	case MSG_EVT_DFS_PAUSE_TX:
 		psts = phl_cmd_dfs_tx_pause_hdl(phl_info, phl_cmd->buf);
@@ -328,23 +334,15 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 	}
 	break;
 
-#if defined(CONFIG_PCI_HCI)
-	case MSG_EVT_HAL_SET_L2_LEAVE:
-		if (rtw_hal_set_l2_leave(phl_info->hal) == RTW_HAL_STATUS_SUCCESS)
-			psts = RTW_PHL_STATUS_SUCCESS;
+	#ifdef CONFIG_WOWLAN
+	case MSG_EVT_HAL_SET_WOWLAN:
+		psts = phl_cmd_set_wowlan_hdl(phl_info, phl_cmd->buf);
 	break;
-#endif
+	#endif
 
 	case MSG_EVT_GET_TX_PWR_DBM:
 	{
-		if (IS_MSG_CANNOT_IO(msg->msg_id))
-			psts = RTW_PHL_STATUS_CANNOT_IO;
-		else if (IS_MSG_FAIL(msg->msg_id))
-			psts = RTW_PHL_STATUS_FAILURE;
-		else if (IS_MSG_CANCEL(msg->msg_id))
-			psts = RTW_PHL_STATUS_FAILURE;
-		else
-			psts = rtw_phl_get_txinfo_pwr((void*)phl_info, (s16*)(phl_cmd->buf));
+		psts = rtw_phl_get_txinfo_pwr((void*)phl_info, (s16*)(phl_cmd->buf));
 	}
 	break;
 
@@ -356,6 +354,9 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 #ifdef RTW_PHL_BCN
 		psts = phl_cmd_issue_bcn_hdl(phl_info, phl_cmd->buf);
 #endif
+	break;
+	case MSG_EVT_EDCCA_CFG:
+		psts = phl_cmd_edcca_cfg_hdl(phl_info, phl_cmd->buf);
 	break;
 	case MSG_EVT_STOP_BCN:
 #ifdef RTW_PHL_BCN
@@ -412,6 +413,10 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 
 	case MSG_EVT_TWT_GET_TWT:
 		psts = phl_twt_get_target_wake_time(phl_info, phl_cmd->buf);
+	break;
+
+	case MSG_EVT_TWT_INFO_F_HDR:
+		psts = phl_twt_info_f_hrl(phl_info, phl_cmd->buf);
 	break;
 #endif
 
@@ -483,6 +488,16 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 			phl_cmd->buf);
 	break;
 
+#ifdef CONFIG_DBCC_P2P_BG_LISTEN
+	case MSG_EVT_CONNECT_CMD_DBCC_DIS:
+		psts = phl_cmd_dbcc_dis_hdl(phl_info, phl_cmd->buf);
+	break;
+
+	case MSG_EVT_DISCONNECT_CMD_DBCC_EN:
+		psts = phl_cmd_dbcc_en_hdl(phl_info, phl_cmd->buf);
+	break;
+#endif
+
 	default:
 		psts = RTW_PHL_STATUS_SUCCESS;
 	break;
@@ -550,6 +565,9 @@ static void _fail_evt_hdlr(void *dispr, void *priv, struct phl_msg *msg)
 		/* watchdog do not need to handle fail case */
 		PHL_DBG("%s do simple watchdog!\n", __func__);
 		rtw_hal_simple_watchdog(phl_info->hal, false);
+#ifdef CONFIG_POST_CORE_KEEP_ALIVE
+		rtw_phl_set_wdog_state_keep_alive(phl_info, false, NULL);
+#endif
 		break;
 	default:
 #ifdef CONFIG_POWER_SAVE
@@ -558,6 +576,10 @@ static void _fail_evt_hdlr(void *dispr, void *priv, struct phl_msg *msg)
 		phl_disp_eng_set_bk_module_info(phl_info, idx,
 				PHL_MDL_POWER_MGNT, &op_info);
 #endif
+		PHL_ERR("%s :: MDL_ID(%d)_FAIL - MSG_EVT_ID=%d \n",
+			__func__,
+			MSG_MDL_ID_FIELD(msg->msg_id),
+			MSG_EVT_ID_FIELD(msg->msg_id));
 		break;
 	}
 }
@@ -569,10 +591,6 @@ static enum phl_mdl_ret_code _phl_cmd_general_msg_hdlr(void *dispr, void *priv,
 	enum rtw_phl_status status = RTW_PHL_STATUS_FAILURE;
 
 	if (IS_MSG_FAIL(msg->msg_id)) {
-
-		PHL_INFO("%s :: MDL_ID(%d)_FAIL - MSG_EVT_ID=%d \n", __func__,
-			 MSG_MDL_ID_FIELD(msg->msg_id),
-			 MSG_EVT_ID_FIELD(msg->msg_id));
 
 		_fail_evt_hdlr(dispr, priv, msg);
 

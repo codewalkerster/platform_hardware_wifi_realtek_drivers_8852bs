@@ -25,6 +25,11 @@ enum rtw_hal_status hal_init_8852bs(struct rtw_phl_com_t *phl_com,
 void hal_deinit_8852bs(struct rtw_phl_com_t *phl_com,
 		       struct hal_info_t *hal);
 
+enum rtw_hal_status hal_fast_start_8852bs(struct rtw_phl_com_t *phl_com,
+					 struct hal_info_t *hal);
+
+enum rtw_hal_status hal_fast_stop_8852bs(struct rtw_phl_com_t *phl_com,
+					 struct hal_info_t *hal);
 enum rtw_hal_status hal_start_8852bs(struct rtw_phl_com_t *phl_com,
 				     struct hal_info_t *hal);
 enum rtw_hal_status hal_stop_8852bs(struct rtw_phl_com_t *phl_com,

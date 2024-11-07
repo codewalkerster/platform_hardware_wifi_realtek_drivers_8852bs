@@ -24,6 +24,9 @@
 #define R_BTC_RF_LUT_WD2 0x3d
 
 #define R_BTC_BB_ANT_DIV_CTRL 0x1586c
+#define R_BTC_BB_BTG_RX 0x980
+#define R_BTC_BB_PRE_AGC_S1 0x476C
+#define R_BTC_BB_PRE_AGC_S0 0x4688
 
 #define R_BTC_CFG 0xDA00
 #define R_BTC_WL_PRI_MSK 0xDA10
@@ -39,10 +42,15 @@
 #define B_BTC_BT_CNT_REST BIT(16)
 #define B_BTC_PTA_WL_PRI_MASK_BCNQ BIT(8)
 #define B_BTC_PTA_WL_PRI_MASK_MGQ BIT(4)
+#define B_BTC_BB_GNT_MUX 0x001e0000
+#define B_BTC_BB_PRE_AGC_MASK bMASKB3
+#define B_BTC_BB_PRE_AGC_VAL 0x80000000
 
 extern const struct btc_chip chip_8852b;
 extern const struct btc_chip chip_8852bp;
 extern const struct btc_chip chip_8851b;
+extern const struct btc_chip chip_8852bt;
+extern const struct btc_chip chip_8852bpt;
 void _8852b_rfe_type(struct btc_t *btc);
 void _8852b_init_cfg(struct btc_t *btc);
 void _8852b_wl_tx_power(struct btc_t *btc, u32 level);

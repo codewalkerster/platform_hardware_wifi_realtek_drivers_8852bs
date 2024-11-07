@@ -17,6 +17,8 @@
 #ifndef __RTW_BTC_H__
 #define __RTW_BTC_H__
 
+enum rtw_btc_esoc_type rtw_btc_update_ext_soc_type(u8 esoc_type);
+
 #endif /* __RTW_BTC_H__ */
 #endif /* CONFIG_BTC */
 

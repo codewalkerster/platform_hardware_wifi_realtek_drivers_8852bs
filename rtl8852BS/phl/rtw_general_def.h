@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2019 Realtek Corporation.
+ * Copyright(c) 2019 - 2023 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -57,10 +57,14 @@ enum rtl_ic_id {
 	RTL8834A,
 	RTL8852B,
 	RTL8852C,
+	RTL8842A,
+	RTL8852D,
 	RTL8192XB,
 	RTL8832BR,
 	RTL8852BP,
 	RTL8851B,
+	RTL8852BT,
+	RTL8852BPT,
 	MAX_IC_ID
 };
 
@@ -71,6 +75,13 @@ enum rtw_hci_type {
 	RTW_HCI_SDIO = BIT2,
 	RTW_HCI_GSPI = BIT3,
 	RTW_HCI_MAX,
+};
+
+enum rtw_pcie_gen {
+	RTW_PCIE_GEN_UNKNOWN,
+	RTW_PCIE_GEN_1 = 1,
+	RTW_PCIE_GEN_2 = 2,
+	RTW_PCIE_GEN_MAX
 };
 
 #define	SM_PS_STATIC	0
@@ -90,6 +101,7 @@ enum rtw_dev_state {
 	RTW_DEV_SURPRISE_REMOVAL = BIT3,
 	RTW_DEV_IN_DFS_CAC_PERIOD = BIT4,
 	RTW_DEV_SHUTTING_DOWN = BIT5, /* set by core */
+	RTW_DEV_SUSPENDED = BIT6,
 	RTW_DEV_MAX
 };
 
@@ -297,6 +309,7 @@ enum wlan_mode {
 	WLAN_MD_11N	= BIT3,
 	WLAN_MD_11AC	= BIT4,
 	WLAN_MD_11AX	= BIT5,
+	WLAN_MD_11BE	= BIT6,
 
 	/* Type for current wireless mode */
 	WLAN_MD_11BG	= (WLAN_MD_11B | WLAN_MD_11G),
@@ -341,10 +354,11 @@ enum channel_width {
 	CHANNEL_WIDTH_40	= 1,
 	CHANNEL_WIDTH_80	= 2,
 	CHANNEL_WIDTH_160	= 3,
-	CHANNEL_WIDTH_80_80	= 4,
-	CHANNEL_WIDTH_5	= 5,
-	CHANNEL_WIDTH_10	= 6,
-	CHANNEL_WIDTH_MAX	= 7,
+	CHANNEL_WIDTH_320	= 4,
+	CHANNEL_WIDTH_80_80	= 5,
+	CHANNEL_WIDTH_5		= 6,
+	CHANNEL_WIDTH_10	= 7,
+	CHANNEL_WIDTH_MAX	= 8,
 };
 
 /*HW SPEC & SW/HW CAP*/
@@ -352,10 +366,11 @@ enum channel_width {
 #define BW_CAP_40M		BIT(CHANNEL_WIDTH_40)
 #define BW_CAP_80M		BIT(CHANNEL_WIDTH_80)
 #define BW_CAP_160M		BIT(CHANNEL_WIDTH_160)
+#define BW_CAP_320M		BIT(CHANNEL_WIDTH_320)
 #define BW_CAP_80_80M	BIT(CHANNEL_WIDTH_80_80)
 #define BW_CAP_5M		BIT(CHANNEL_WIDTH_5)
 #define BW_CAP_10M		BIT(CHANNEL_WIDTH_10)
-#define BW_CAP_BIT_NUM	7
+#define BW_CAP_BIT_NUM	8
 
 
 /*
@@ -552,7 +567,8 @@ enum rtw_ac {
 	RTW_AC_BE = 0,
 	RTW_AC_BK = 1,
 	RTW_AC_VI = 2,
-	RTW_AC_VO = 3
+	RTW_AC_VO = 3,
+	RTW_AC_MAX
 };
 
 enum rtw_edcca_mode {
@@ -584,6 +600,17 @@ enum rtw_gpio_mode {
 	RTW_AX_SW_IO_MODE_OUTPUT_OD,
 	RTW_AX_SW_IO_MODE_OUTPUT_PP,
 	RTW_AX_SW_IO_MODE_MAX
+};
+
+enum rtw_p2p_app_type {
+	RTW_P2P_APP_NONE = 0,
+	RTW_P2P_APP_UNKNOWN = 1,
+	RTW_P2P_APP_GC = 2,
+	RTW_P2P_APP_GO_HOTSPOT =3,
+	RTW_P2P_APP_GO_SRC = 4,
+	RTW_P2P_APP_GO_SINK = 5,
+	RTW_P2P_APP_GO_SRC_SINK = 6,
+	RTW_P2P_SESSION_MAX
 };
 
 /*MAC_AX_PCIE_L0SDLY_IGNORE = 0xFF, MAC_AX_PCIE_L1DLY_IGNORE = 0xFF, MAC_AX_PCIE_CLKDLY_IGNORE = 0xFF */
@@ -619,6 +646,7 @@ enum rtw_gpio_mode {
 #define RTW_FRAME_TYPE_REASOC_REQ 8
 #define RTW_FRAME_TYPE_REASOC_RESP 12
 #define RTW_FRAME_TYPE_ACK 53
+#define RTW_FRAME_TYPE_MAX 0xFF
 #define RTW_IS_ASOC_PKT(_TYPE) \
 	((_TYPE == RTW_FRAME_TYPE_REASOC_RESP) || \
 	 (_TYPE == RTW_FRAME_TYPE_REASOC_REQ) || \

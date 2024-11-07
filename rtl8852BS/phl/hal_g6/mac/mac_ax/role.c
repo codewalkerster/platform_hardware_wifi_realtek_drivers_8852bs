@@ -62,9 +62,9 @@ static inline void __role_queue_before(struct mac_ax_adapter *adapter,
 	__role_insert(adapter, new_role, next->prev, next, list);
 }
 
-static inline void __role_unlink(struct mac_ax_adapter *adapter,
-				 struct mac_role_tbl *role,
-				 struct mac_role_tbl_head *list)
+static void __role_unlink(struct mac_ax_adapter *adapter,
+			  struct mac_role_tbl *role,
+			  struct mac_role_tbl_head *list)
 {
 	struct mac_role_tbl *next, *prev;
 
@@ -105,8 +105,8 @@ static inline u32 role_queue_len(struct mac_role_tbl_head *list)
 	return list->qlen;
 }
 
-static inline void role_queue_head_init(struct mac_ax_adapter *adapter,
-					struct mac_role_tbl_head *list)
+static void role_queue_head_init(struct mac_ax_adapter *adapter,
+				 struct mac_role_tbl_head *list)
 {
 	PLTFM_MUTEX_INIT(&list->lock);
 	__role_queue_head_init(adapter, list);
@@ -120,8 +120,8 @@ static inline void role_enqueue(struct mac_ax_adapter *adapter,
 			    list, (struct mac_role_tbl *)list, new_role);
 }
 
-static inline struct mac_role_tbl *role_dequeue(struct mac_ax_adapter *adapter,
-						struct mac_role_tbl_head *list)
+static struct mac_role_tbl *role_dequeue(struct mac_ax_adapter *adapter,
+					 struct mac_role_tbl_head *list)
 {
 	struct mac_role_tbl *role = NULL;
 
@@ -279,7 +279,8 @@ u32 role_info_valid(struct mac_ax_adapter *adapter,
 	}
 
 	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
-	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852BT)) {
 		if (info->wmm >= 2) {
 			PLTFM_MSG_ERR("invalid wmm %d\n", info->wmm);
 			return MACFUNCINPUT;
@@ -513,6 +514,7 @@ u32 role_init(struct mac_ax_adapter *adapter,
 	role->wmm = (info->band ? MAC_AX_ACTUAL_WMM_BAND : 0) |
 		    (info->wmm ? MAC_AX_ACTUAL_WMM_DRV_WMM : 0);
 
+#if MAC_FEAT_DBCC
 	if (info->dbcc_role) {
 		ret = dbcc_wmm_add_macid(adapter, info);
 		if (ret != MACSUCCESS) {
@@ -520,6 +522,7 @@ u32 role_init(struct mac_ax_adapter *adapter,
 			return ret;
 		}
 	}
+#endif /* MAC_FEAT_DBCC */
 
 	role->info = *info;
 
@@ -594,6 +597,9 @@ static u32 _add_role(struct mac_ax_adapter *adapter,
 {
 	struct mac_role_tbl *role = NULL;
 	struct mac_role_tbl_head *list_head = adapter->role_tbl;
+	//struct mac_ax_priv_ops *p_ops = adapter_to_priv_ops(adapter);
+	//struct mac_ax_dctl_info dctl_info;
+	//struct mac_ax_dctl_info dctl_mask;
 	u32 ret = MACSUCCESS;
 	u32 cmac_en;
 	bool fw_role = true;
@@ -658,7 +664,22 @@ static u32 _add_role(struct mac_ax_adapter *adapter,
 			}
 		}
 	}
+#if 0
+	ret = p_ops->init_cctl_info(adapter, info->macid);
+	if (ret != MACSUCCESS) {
+		PLTFM_MSG_ERR("%s init cctl info\n", __func__);
+		return ret;
+	}
 
+	PLTFM_MEMSET(&dctl_info, 0, sizeof(struct mac_ax_dctl_info));
+	PLTFM_MEMSET(&dctl_mask, 0xFF, sizeof(struct mac_ax_dctl_info));
+	ret = mac_upd_dctl_info(adapter, &dctl_info, &dctl_mask,
+				info->macid, TBL_WRITE_OP);
+	if (ret != MACSUCCESS) {
+		PLTFM_MSG_ERR("%s init dctl info\n", __func__);
+		return ret;
+	}
+#endif
 	ret = mac_upd_addr_cam(adapter, &role->info, ADD);
 
 	if (ret == MACADDRCAMFL) {
@@ -680,11 +701,13 @@ static u32 _add_role(struct mac_ax_adapter *adapter,
 
 role_add_fail:
 	role_enqueue(adapter, list_head->role_tbl_pool, role);
+#if MAC_FEAT_DBCC
 	if (role->info.dbcc_role) {
 		ret = dbcc_wmm_rm_macid(adapter, &role->info);
 		if (ret != MACSUCCESS)
 			PLTFM_MSG_ERR("add role fail dbcc wmm rm macid %d\n", ret);
 	}
+#endif /* MAC_FEAT_DBCC */
 	return ret;
 }
 
@@ -709,6 +732,7 @@ static u32 _change_role(struct mac_ax_adapter *adapter,
 		return MACNOITEM;
 	}
 
+#if MAC_FEAT_DBCC
 	if (info->upd_mode == MAC_AX_ROLE_BAND_SW) {
 		if (!role->info.dbcc_role) {
 			PLTFM_MSG_ERR("role band sw runs only for dbcc role\n");
@@ -722,6 +746,7 @@ static u32 _change_role(struct mac_ax_adapter *adapter,
 			return ret;
 		}
 	}
+#endif /* MAC_FEAT_DBCC */
 	info->a_info = role->info.a_info;
 	info->b_info = role->info.b_info;
 	info->s_info = role->info.s_info;
@@ -792,16 +817,13 @@ static u32 _change_role(struct mac_ax_adapter *adapter,
 		}
 	} else if (info->upd_mode == MAC_AX_ROLE_INFO_CHANGE ||
 		   info->upd_mode == MAC_AX_ROLE_BAND_SW) {
-		if (info->self_role == MAC_AX_SELF_ROLE_CLIENT) {
-		} else {
-			ret = mac_h2c_join_info(adapter, info);
-			if (ret != MACSUCCESS) {
-				if (ret == MACFWNONRDY) {
-					PLTFM_MSG_WARN("skip join info\n");
-				} else {
-					PLTFM_MSG_ERR("mac_h2c_join_info: %d\n", ret);
-					return ret;
-				}
+		ret = mac_h2c_join_info(adapter, info);
+		if (ret != MACSUCCESS) {
+			if (ret == MACFWNONRDY) {
+				PLTFM_MSG_WARN("skip join info\n");
+			} else {
+				PLTFM_MSG_ERR("mac_h2c_join_info: %d\n", ret);
+				return ret;
 			}
 		}
 	} else {
@@ -845,6 +867,7 @@ static u32 _remove_role(struct mac_ax_adapter *adapter, u8 macid)
 		return ret;
 	}
 
+#if MAC_FEAT_DBCC
 	if (role->info.dbcc_role) {
 		role->info.dbcc_role = 0;
 		ret = dbcc_wmm_rm_macid(adapter, &role->info);
@@ -853,6 +876,7 @@ static u32 _remove_role(struct mac_ax_adapter *adapter, u8 macid)
 			return ret;
 		}
 	}
+#endif /* MAC_FEAT_DBCC */
 
 	role_return(adapter, role);
 
@@ -1100,6 +1124,10 @@ u32 mac_get_macaddr(struct mac_ax_adapter *adapter,
 	macaddr_list = (struct mac_ax_macaddr *)
 			PLTFM_MALLOC(sizeof(struct mac_ax_macaddr) *
 			adapter->hw_info->macid_num);
+	if (!macaddr_list) {
+		PLTFM_MSG_ERR("[ERR]malloc macaddr_list\n");
+		return MACBUFALLOC;
+	}
 	role = list_head->next;
 	for (m_list_idx = 0; role->next != list_head->next; role = role->next) {
 		if (!role->info.a_info.valid)
@@ -1213,20 +1241,24 @@ u32 mac_set_slot_time(struct mac_ax_adapter *adapter, enum mac_ax_slot_time st)
 static u32 mac_h2c_join_info(struct mac_ax_adapter *adapter,
 			     struct mac_ax_role_info *info)
 {
-	u8 *buf;
-	#if MAC_AX_PHL_H2C
-	struct rtw_h2c_pkt *h2cb;
-	#else
-	struct h2c_buf *h2cb;
-	#endif
-	struct fwcmd_joininfo *fwcmd_tbl;
 	struct mac_ax_sta_init_info sta;
-	u32 ret;
+	u32 ret = MACSUCCESS;
+
+	struct h2c_info h2c_info = {0};
+	struct fwcmd_joininfo *fwcmd_tbl;
 
 	if (adapter->sm.fwdl != MAC_AX_FWDL_INIT_RDY) {
 		PLTFM_MSG_WARN("%s fw not ready\n", __func__);
 		return MACFWNONRDY;
 	}
+
+	h2c_info.agg_en = 1;
+	h2c_info.content_len = sizeof(struct fwcmd_joininfo);
+	h2c_info.h2c_cat = FWCMD_H2C_CAT_MAC;
+	h2c_info.h2c_class = FWCMD_H2C_CL_MEDIA_RPT;
+	h2c_info.h2c_func = FWCMD_H2C_FUNC_JOININFO;
+	h2c_info.rec_ack = 0;
+	h2c_info.done_ack = 1;
 
 	// sta info
 	sta.macid = info->macid;
@@ -1244,17 +1276,11 @@ static u32 mac_h2c_join_info(struct mac_ax_adapter *adapter,
 	sta.wifi_role = info->wifi_role;
 	sta.self_role = info->self_role;
 
-	h2cb = h2cb_alloc(adapter, H2CB_CLASS_CMD);
-	if (!h2cb)
-		return MACNPTR;
-
-	buf = h2cb_put(h2cb, sizeof(struct fwcmd_joininfo));
-	if (!buf) {
-		ret = MACNOBUF;
-		goto join_info_fail;
+	fwcmd_tbl = (struct fwcmd_joininfo *)PLTFM_MALLOC(h2c_info.content_len);
+	if (!fwcmd_tbl) {
+		PLTFM_MSG_ERR("[ERR]malloc fwcmd_tbl\n");
+		return MACBUFALLOC;
 	}
-
-	fwcmd_tbl = (struct fwcmd_joininfo *)buf;
 	fwcmd_tbl->dword0 =
 	cpu_to_le32(SET_WORD(sta.macid, FWCMD_H2C_JOININFO_MACID) |
 		    (sta.opmode ? FWCMD_H2C_JOININFO_OPMODE : 0) |
@@ -1271,60 +1297,35 @@ static u32 mac_h2c_join_info(struct mac_ax_adapter *adapter,
 		    SET_WORD(sta.wifi_role, FWCMD_H2C_JOININFO_WIFI_ROLE) |
 		    SET_WORD(sta.self_role, FWCMD_H2C_JOININFO_SELF_ROLE));
 
-	ret = h2c_pkt_set_hdr(adapter, h2cb,
-			      FWCMD_TYPE_H2C,
-			      FWCMD_H2C_CAT_MAC,
-			      FWCMD_H2C_CL_MEDIA_RPT,
-			      FWCMD_H2C_FUNC_JOININFO,
-			      0,
-			      1);
+	ret = mac_h2c_common(adapter, &h2c_info, (u32 *)fwcmd_tbl);
+	if (ret)
+		PLTFM_MSG_ERR("[ERR]%s: Send H2C fail\n", __func__);
 
-	if (ret != MACSUCCESS)
-		goto join_info_fail;
-
-	// Return MACSUCCESS if h2c aggregation is enabled and enqueued successfully.
-	// The H2C shall be sent by mac_h2c_agg_tx.
-	ret = h2c_agg_enqueue(adapter, h2cb);
-	if (ret == MACSUCCESS)
-		return MACSUCCESS;
-
-	ret = h2c_pkt_build_txd(adapter, h2cb);
-	if (ret != MACSUCCESS)
-		goto join_info_fail;
-
-	#if MAC_AX_PHL_H2C
-	ret = PLTFM_TX(h2cb);
-	#else
-	ret = PLTFM_TX(h2cb->data, h2cb->len);
-	#endif
-	if (ret != MACSUCCESS)
-		goto join_info_fail;
-
-	h2cb_free(adapter, h2cb);
-	return MACSUCCESS;
-
-join_info_fail:
-	h2cb_free(adapter, h2cb);
+	PLTFM_FREE(fwcmd_tbl, h2c_info.content_len);
 	return ret;
 }
 
 static u32 mac_fw_role_maintain(struct mac_ax_adapter *adapter,
 				struct mac_ax_role_info *info)
 {
-	u8 *buf;
-	#if MAC_AX_PHL_H2C
-	struct rtw_h2c_pkt *h2cb;
-	#else
-	struct h2c_buf *h2cb;
-	#endif
-	struct fwcmd_fwrole_maintain *fwcmd_tbl;
 	struct mac_ax_fwrole_maintain fwrole_main;
-	u32 ret;
+	u32 ret = MACSUCCESS;
+
+	struct h2c_info h2c_info = {0};
+	struct fwcmd_fwrole_maintain *fwcmd_tbl;
 
 	if (adapter->sm.fwdl != MAC_AX_FWDL_INIT_RDY) {
 		PLTFM_MSG_WARN("%s fw not ready\n", __func__);
 		return MACFWNONRDY;
 	}
+
+	h2c_info.agg_en = 1;
+	h2c_info.content_len = sizeof(struct fwcmd_fwrole_maintain);
+	h2c_info.h2c_cat = FWCMD_H2C_CAT_MAC;
+	h2c_info.h2c_class = FWCMD_H2C_CL_MEDIA_RPT;
+	h2c_info.h2c_func = FWCMD_H2C_FUNC_FWROLE_MAINTAIN;
+	h2c_info.rec_ack = 0;
+	h2c_info.done_ack = 1;
 
 	fwrole_main.macid = info->macid;
 	fwrole_main.self_role = info->self_role;
@@ -1333,17 +1334,11 @@ static u32 mac_fw_role_maintain(struct mac_ax_adapter *adapter,
 	fwrole_main.band = info->band;
 	fwrole_main.port = info->port;
 
-	h2cb = h2cb_alloc(adapter, H2CB_CLASS_CMD);
-	if (!h2cb)
-		return MACNPTR;
-
-	buf = h2cb_put(h2cb, sizeof(struct fwcmd_fwrole_maintain));
-	if (!buf) {
-		ret = MACNOBUF;
-		goto role_maintain_fail;
+	fwcmd_tbl = (struct fwcmd_fwrole_maintain *)PLTFM_MALLOC(h2c_info.content_len);
+	if (!fwcmd_tbl) {
+		PLTFM_MSG_ERR("[ERR]malloc fwcmd_tbl\n");
+		return MACBUFALLOC;
 	}
-
-	fwcmd_tbl = (struct fwcmd_fwrole_maintain *)buf;
 	fwcmd_tbl->dword0 =
 	cpu_to_le32(SET_WORD(fwrole_main.macid,
 			     FWCMD_H2C_FWROLE_MAINTAIN_MACID) |
@@ -1358,40 +1353,11 @@ static u32 mac_fw_role_maintain(struct mac_ax_adapter *adapter,
 		    SET_WORD(fwrole_main.port,
 			     FWCMD_H2C_FWROLE_MAINTAIN_PORT));
 
-	ret = h2c_pkt_set_hdr(adapter, h2cb,
-			      FWCMD_TYPE_H2C,
-			      FWCMD_H2C_CAT_MAC,
-			      FWCMD_H2C_CL_MEDIA_RPT,
-			      FWCMD_H2C_FUNC_FWROLE_MAINTAIN,
-			      0,
-			      1);
+	ret = mac_h2c_common(adapter, &h2c_info, (u32 *)fwcmd_tbl);
+	if (ret)
+		PLTFM_MSG_ERR("[ERR]%s: Send H2C fail\n", __func__);
 
-	if (ret != MACSUCCESS)
-		goto role_maintain_fail;
-
-	// Return MACSUCCESS if h2c aggregation is enabled and enqueued successfully.
-	// The H2C shall be sent by mac_h2c_agg_tx.
-	ret = h2c_agg_enqueue(adapter, h2cb);
-	if (ret == MACSUCCESS)
-		return MACSUCCESS;
-
-	ret = h2c_pkt_build_txd(adapter, h2cb);
-	if (ret != MACSUCCESS)
-		goto role_maintain_fail;
-
-#if MAC_AX_PHL_H2C
-	ret = PLTFM_TX(h2cb);
-#else
-	ret = PLTFM_TX(h2cb->data, h2cb->len);
-#endif
-	if (ret != MACSUCCESS)
-		goto role_maintain_fail;
-
-	h2cb_free(adapter, h2cb);
-	return MACSUCCESS;
-
-role_maintain_fail:
-	h2cb_free(adapter, h2cb);
+	PLTFM_FREE(fwcmd_tbl, h2c_info.content_len);
 	return ret;
 }
 

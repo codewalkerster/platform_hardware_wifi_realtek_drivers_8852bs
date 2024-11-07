@@ -20,6 +20,8 @@
 #include "../type.h"
 #include "pwr.h"
 
+/*--------------------Define -------------------------------------------*/
+
 #if MAC_AX_SDIO_SUPPORT
 /* SDIO CMD address mapping */
 #define SDIO_8BYTE_LEN_MASK	0x0FFF
@@ -70,43 +72,8 @@
 #define CMAC_CLK_ALLEN 0xFFFFFFFF
 #define SDIO_DEFAULT_AGG_NUM	0x40
 
-/**
- * @struct mac_sdio_tbl
- * @brief mac_sdio_tbl
- *
- * @var mac_sdio_tbl::lock
- * Please Place Description here.
- */
-struct mac_sdio_tbl {
-	mac_ax_mutex lock;
-};
 
-/**
- * @struct mac_sdio_ch_thr
- * @brief mac_sdio_ch_thr
- *
- * @var mac_sdio_ch_thr::thr
- * Please Place Description here.
- * @var mac_sdio_ch_thr::intrpt_en
- * Please Place Description here.
- * @var mac_sdio_ch_thr::wp_sh
- * Please Place Description here.
- * @var mac_sdio_ch_thr::wp_msk
- * Please Place Description here.
- * @var mac_sdio_ch_thr::wd_sh
- * Please Place Description here.
- * @var mac_sdio_ch_thr::wd_msk
- * Please Place Description here.
- */
-struct mac_sdio_ch_thr {
-	u16 thr;
-	u32 intrpt_en;
-	u8 wp_sh;
-	u16 wp_msk;
-	u8 wd_sh;
-	u16 wd_msk;
-};
-
+/*--------------------Define Enum---------------------------------------*/
 /**
  * @enum sdio_io_size
  *
@@ -150,6 +117,47 @@ enum sdio_tx_byte_cnt {
 	SDIO_TX_AGG_8_BYTE_CNT,
 	SDIO_TX_DUMMY_4_BYTE_CNT,
 };
+
+/*--------------------Define Struct-------------------------------------*/
+
+/**
+ * @struct mac_sdio_tbl
+ * @brief mac_sdio_tbl
+ *
+ * @var mac_sdio_tbl::lock
+ * Please Place Description here.
+ */
+struct mac_sdio_tbl {
+	mac_ax_mutex lock;
+};
+
+/**
+ * @struct mac_sdio_ch_thr
+ * @brief mac_sdio_ch_thr
+ *
+ * @var mac_sdio_ch_thr::thr
+ * Please Place Description here.
+ * @var mac_sdio_ch_thr::intrpt_en
+ * Please Place Description here.
+ * @var mac_sdio_ch_thr::wp_sh
+ * Please Place Description here.
+ * @var mac_sdio_ch_thr::wp_msk
+ * Please Place Description here.
+ * @var mac_sdio_ch_thr::wd_sh
+ * Please Place Description here.
+ * @var mac_sdio_ch_thr::wd_msk
+ * Please Place Description here.
+ */
+struct mac_sdio_ch_thr {
+	u32 intrpt_en;
+	u16 thr;
+	u16 wp_msk;
+	u16 wd_msk;
+	u8 wp_sh;
+	u8 wd_sh;
+};
+
+/*--------------------Function declaration-----------------------------*/
 
 u32 r_indir_cmd53_sdio(struct mac_ax_adapter *adapter, u32 adr);
 u32 r8_indir_sdio(struct mac_ax_adapter *adapter, u32 adr);
@@ -741,6 +749,26 @@ u32 get_pcie_speed_sdio(struct mac_ax_adapter *adapter,
  */
 
 /**
+ * @brief get_pcie_sup_speed_sdio
+ *
+ * @param *adapter
+ * @return Please Place Description here.
+ * @retval u32
+ */
+u32 get_pcie_sup_speed_sdio(struct mac_ax_adapter *adapter);
+/**
+ * @}
+ * @}
+ */
+
+/**
+ * @addtogroup HCI
+ * @{
+ * @addtogroup SDIO
+ * @{
+ */
+
+/**
  * @brief poll_rxdma_ch_idle_sdio
  *
  * @param *adapter
@@ -963,5 +991,45 @@ u32 sdio_tp_adjust(struct mac_ax_adapter *adapter, struct mac_ax_tp_param tp);
  * @}
  */
 
+/**
+ * @brief ctrl_txdma_sdio
+ *
+ * @param *adapter
+ * @param opt
+ * @return Please Place Description here.
+ * @retval u32
+ */
+u32 ctrl_txdma_sdio(struct mac_ax_adapter *adapter, u8 opt);
+/**
+ * @}
+ * @}
+ */
+
+/**
+ * @brief poll_txdma_idle_sdio
+ *
+ * @param *adapter
+ * @return Please Place Description here.
+ * @retval u32
+ */
+u32 poll_txdma_idle_sdio(struct mac_ax_adapter *adapter)
+;
+/**
+ * @}
+ * @}
+ */
+
+/**
+ * @brief clr_hci_trx_sdio
+ *
+ * @param *adapter
+ * @return Please Place Description here.
+ * @retval u32
+ */
+u32 clr_hci_trx_sdio(struct mac_ax_adapter *adapter);
+/**
+ * @}
+ * @}
+ */
 #endif /*MAC_AX_SDIO_SUPPORT*/
 #endif

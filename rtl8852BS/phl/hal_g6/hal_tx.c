@@ -101,6 +101,15 @@ u8 rtw_hal_get_fwcmd_queue_idx(void *hal)
 
 	return trx_ops->get_fwcmd_queue_idx();
 }
+
+void rtw_hal_clear_rwptr(void *hal)
+{
+	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
+
+	if (RTW_HAL_STATUS_SUCCESS != rtw_hal_mac_clear_rwptr(hal_info))
+		PHL_ERR("%s failure \n", __func__);
+}
+
 void rtw_hal_cfg_txhci(void *hal, u8 en)
 {
 	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
@@ -121,6 +130,25 @@ enum rtw_hal_status rtw_hal_chk_allq_empty(void *hal, u8 *empty)
 
 	return rtw_hal_mac_chk_allq_empty(hal_info, empty);
 }
+
+enum rtw_hal_status rtw_hal_set_resp_ack_chk_cca(void *hal, u8 band, u8 en)
+{
+	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
+
+	FUNCIN();
+
+	return rtw_hal_mac_set_resp_ack_chk_cca(hal_info, band, en);
+}
+
+enum rtw_hal_status rtw_hal_sifs_chk_cca_en(void *hal, u8 band, u8 en)
+{
+	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
+
+	FUNCIN();
+
+	return rtw_hal_mac_sifs_chk_cca_en(hal_info, band, en);
+}
+
 
 enum rtw_hal_status
 rtw_hal_fill_txdesc(void *hal,
@@ -165,6 +193,18 @@ rtw_hal_hw_tx_resume(void *hal)
 	sts = rtw_hal_mac_hw_tx_resume(hal_info);
 
 	return sts;
+}
+
+u8 rtw_hal_poll_txdma_idle(void *hal)
+{
+	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
+	enum rtw_hal_status ret = RTW_HAL_STATUS_SUCCESS;
+
+	FUNCIN();
+
+	ret = rtw_hal_mac_poll_txdma_idle(hal_info);
+
+	return (ret == RTW_HAL_STATUS_SUCCESS) ? true : false;
 }
 
 #ifdef CONFIG_PCI_HCI
@@ -313,16 +353,6 @@ rtw_hal_trigger_txstart(void *hal, struct tx_base_desc *txbd, u8 dma_ch)
 	}
 
 	return sts;
-}
-
-u8 rtw_hal_poll_txdma_idle(void *hal)
-{
-	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
-	struct hal_trx_ops *trx_ops = hal_info->trx_ops;
-
-	FUNCIN();
-
-	return trx_ops->poll_txdma_idle(hal_info);
 }
 
 #endif /*CONFIG_PCI_HCI*/

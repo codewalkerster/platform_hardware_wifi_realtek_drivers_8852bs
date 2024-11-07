@@ -86,7 +86,23 @@ static __inline char *_os_strchr(const char *s, int c)
 			return NULL;
 	return (char *)s;
 }
+
+static __inline int _os_va_start(_os_va_list args, const char *format)
+{
+	return 0;
+}
+
+static __inline int _os_va_end(_os_va_list args)
+{
+	return 0;
+}
+
 static __inline int _os_snprintf(char *str, size_t size, const char *format, ...)
+{
+	return 0;
+}
+
+static __inline int _os_vsnprintf(char *str, size_t size, const char *format, _os_va_list args)
 {
 	return 0;
 }
@@ -121,6 +137,10 @@ static inline u32 _os_get_cur_time_ms(void)
 	return (_os_get_cur_time_us() / 1000);
 }
 
+static inline _os_raw_time _os_get_cur_raw_time(void)
+{
+	return 0;
+}
 static inline u64 _os_modular64(u64 x, u64 y)
 {
 	return x % y;
@@ -506,6 +526,26 @@ static inline u8 _os_deinit_handler_ext(void *drv_priv,
 }
 
 /*
+* if _os_file_readable() is supported
+*/
+static inline bool _os_file_readable_supported(void)
+{
+	return false;
+}
+
+/*
+* Test if the specific @param path is a file and readable.
+* If readable, @param sz is set to file size
+* @param path the path of the file to test
+* @param sz the file size if file is readable
+* @return true or false
+*/
+static inline bool _os_file_readable(const char *path, u32 *sz)
+{
+	return false;
+}
+
+/*
  * _os_read_file - phl read file api
  * @path: path of the file to open and read
  * @buf: the address of allocated buffer to store the file content
@@ -554,6 +594,19 @@ static __inline u32 _os_write32_pcie(void *h, u32 addr, u32 val)
 {
 	return 0;
 }
+
+static __inline bool _os_get_pci_cfg(void *drv_priv, u32 offset, void *buf, u32 len)
+{
+	/* TBD */
+	return false;
+}
+
+static __inline bool _os_set_pci_cfg(void *drv_priv, u32 offset, void *buf, u32 len)
+{
+	/* TBD */
+	return false;
+}
+
 #endif/*#ifdef CONFIG_PCI_HCI*/
 
 #ifdef CONFIG_USB_HCI

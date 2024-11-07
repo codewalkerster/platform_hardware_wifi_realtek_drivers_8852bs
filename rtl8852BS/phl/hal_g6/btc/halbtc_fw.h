@@ -6,13 +6,11 @@
 #pragma pack(push)
 #pragma pack(1)
 
-struct btc_t;
+#ifdef BTC_LE_INIT_TO_WL_SLOT
+#define LE_INIT_RATIO 2
+#endif
 
-struct btf_tlv {
-	u8 type;
-	u8 len;
-	u8 val[1];
-};
+struct btc_t;
 
 enum btf_reg_type {
 	REG_MAC = 0x0,
@@ -37,9 +35,7 @@ enum bt_h2c_class {
 	BTFC_MAX
 };
 
-/* =======================================
- * BTFC_SET class 0x10 ->function
- */
+/* BTFC_SET class 0x10 ->function */
 enum btf_set {
 	SET_REPORT_EN = 0x0,
 	SET_SLOT_TABLE, /* Slot table  */
@@ -58,7 +54,7 @@ enum btf_set {
 	SET_BT_LNA_CONSTRAIN,
 	SET_BT_QUERY_DEV_LIST,
 	SET_BT_QUERY_DEV_INFO,
-	SET_BT_GOLDEN_RX_RANGE,
+	SET_BT_QUERY_LEAUDIO_INFO,
 	SET_BT_PSD_REPORT,
 	SET_H2C_TEST,
 	SET_MAX1
@@ -75,34 +71,14 @@ enum btf_set_report_en {
 	RPT_EN_BT_AFH_MAP = BIT6, /* AFH map H/M/L */
 	RPT_EN_BT_AFH_MAP_LE = BIT7, /* AFH map L/M */
 	RPT_EN_FW_STEP_INFO = BIT8,
+	RPT_EN_FW_TEST_INFO = BIT9,
 	RPT_EN_ALL = 0x1ff
-};
-
-/* SET_SLOT_TABLE function 0x1 -> sub-function */
-struct btf_set_report {
-	u8 fver;
-	u32 enable;
-	u32 para;
-};
-
-struct btf_set_slot_table {
-	u8 fver;
-	u8 tbl_num;
-	u8 buf[1];
-};
-
-/* SET_MREG_TABLE function 0x2 -> sub-function */
-struct btf_set_mon_reg {
-	u8 fver;
-	u8 reg_num;
-	u8 buf[1];
 };
 
 /* SET_CX_POLICY function 0x3 -> TLV sub-function */
 enum btf_set_cx_policy {
 	CXPOLICY_TDMA = 0x0,
 	CXPOLICY_SLOT = 0x1,
-	CXPOLICY_TYPE = 0x2,
 	CXPOLICY_MAX
 };
 
@@ -110,6 +86,10 @@ enum btf_set_cx_policy {
 enum btc_gpio_dbg_type {
 	CXDGPIO_EN_MAP = 0x0,
 	CXDGPIO_MUX_MAP = 0x1,
+	CXDGPIO_EXT_HPTA = 0x2,
+	CXDGPIO_EXT_HMBX = 0x3,
+	CXDGPIO_EXT_SWOUT = 0x4,
+	CXDGPIO_EXT_SWIN = 0x5,
 	CXDGPIO_MAX
 };
 
@@ -117,12 +97,7 @@ enum btc_gpio_dbg_type {
 enum btc_drv_info_type {
 	CXDRVINFO_INIT = 0, /* wl_only, dbcc_en...*/
 	CXDRVINFO_ROLE, /* Role */
-	CXDRVINFO_DBCC, /* DBCC */
-	CXDRVINFO_SMAP, /* status map */
-	CXDRVINFO_RFK,  /* wl rfk info */
-	CXDRVINFO_RUN,  /* wl run reason */
 	CXDRVINFO_CTRL, /* ctrl info */
-	CXDRVINFO_SCAN, /* scan info */
 	CXDRVINFO_TRX,  /* WL traffic to WL fw */
 	CXDRVINFO_TXPWR, /* Set WL tx pwr in WL fw */
 	CXDRVINFO_FDDT, /* FDD train info  */
@@ -136,17 +111,13 @@ enum btc_drv_event_type {
 	CXDRVEVNT_MAX
 };
 
-/* =======================================
- * BTFC_GET class 0x11 ->function
- */
+/* BTFC_GET class 0x11 ->function */
 enum btf_get {
 	GET_BT_REG,
 	GET_MAX
 };
 
-/* =======================================
- * BTFC_FW_EVENT class 0x12 ->function
- */
+/* BTFC_FW_EVENT class 0x12 ->function */
 enum btf_fw_event {
 	BTF_EVNT_RPT = 0,
 	BTF_EVNT_BT_INFO = 1,
@@ -155,16 +126,10 @@ enum btf_fw_event {
 	BTF_EVNT_CX_RUNINFO = 4,
 	BTF_EVNT_BT_PSD = 5,
 	BTF_EVNT_BT_DEV_INFO = 6,
+	BTF_EVNT_BT_LEAUDIO_INFO = 7,
 	BTF_EVNT_BUF_OVERFLOW,
 	BTF_EVNT_C2H_LOOPBACK,
 	BTF_EVNT_MAX
-};
-
-struct btf_event {
-	u8 event;
-	u8 reserved;
-	u16 length;
-	u8 buf[1];
 };
 
 /* BTF_EVNT_RPT function 0x0 -> TLV type */
@@ -175,6 +140,7 @@ enum btf_fw_event_report {
 	BTC_RPT_TYPE_CYSTA,
 	BTC_RPT_TYPE_STEP,
 	BTC_RPT_TYPE_NULLSTA,
+	BTC_RPT_TYPE_FDDT,
 	BTC_RPT_TYPE_MREG,
 	BTC_RPT_TYPE_GPIO_DBG,
 	BTC_RPT_TYPE_BT_VER,
@@ -183,6 +149,27 @@ enum btf_fw_event_report {
 	BTC_RPT_TYPE_BT_DEVICE,
 	BTC_RPT_TYPE_TEST,
 	BTC_RPT_TYPE_MAX
+};
+
+enum btc_fbtc_invlaid_input {
+	BTFRE_INVALID_INPUT = 0x0, /* invalid input parameters */
+	BTFRE_UNDEF_TYPE,
+	BTFRE_EXCEPTION,
+	BTFRE_MAX
+};
+
+struct btf_tlv {
+	u8 type;
+	u8 ver;
+	u8 len;
+	u8 val[1];
+};
+
+struct btf_event {
+	u8 event;
+	u8 reserved;
+	u16 length;
+	u8 buf[1];
 };
 
 struct btc_rpt_cmn_info {
@@ -226,6 +213,11 @@ struct btc_fbtc_nullsta {
 	struct fbtc_cynullsta finfo; /* info from fw */
 };
 
+struct btc_fbtc_fddt {
+	struct btc_rpt_cmn_info cinfo; /* common info, by driver */
+	struct fbtc_fddt_sta finfo; /* info from fw */
+};
+
 struct btc_fbtc_mreg {
 	struct btc_rpt_cmn_info cinfo; /* common info, by driver */
 	struct fbtc_mreg_val finfo; /* info from fw */
@@ -256,11 +248,9 @@ struct btc_fbtc_btdev {
 	struct fbtc_btdevinfo finfo; /* info from fw */
 };
 
-enum btc_fbtc_invlaid_input {
-	BTFRE_INVALID_INPUT = 0x0, /* invalid input parameters */
-	BTFRE_UNDEF_TYPE,
-	BTFRE_EXCEPTION,
-	BTFRE_MAX
+struct btc_fbtc_testinfo {
+	struct btc_rpt_cmn_info cinfo; /* common info, by driver */
+	struct fbtc_testinfo finfo; /* info from fw */
 };
 
 struct btf_fwinfo {
@@ -280,31 +270,29 @@ struct btf_fwinfo {
 	struct btc_fbtc_cysta rpt_fbtc_cysta;
 	struct btc_fbtc_step rpt_fbtc_step;
 	struct btc_fbtc_nullsta rpt_fbtc_nullsta;
+	struct btc_fbtc_fddt rpt_fbtc_fddt;
 	struct btc_fbtc_mreg rpt_fbtc_mregval;
 	struct btc_fbtc_gpio_dbg rpt_fbtc_gpio_dbg;
 	struct btc_fbtc_btver rpt_fbtc_btver;
 	struct btc_fbtc_btscan rpt_fbtc_btscan;
 	struct btc_fbtc_btafh rpt_fbtc_btafh;
 	struct btc_fbtc_btdev rpt_fbtc_btdev;
+	struct btc_fbtc_testinfo rpt_fbtc_testinfo;
 };
 
 /*
  * extern functions
  */
 
-void _chk_btc_err(struct btc_t *btc, u8 type, u32 cnt);
-void hal_btc_fw_event(struct btc_t *btc, u8 evt_id, void *data, u32 len);
-void hal_btc_fw_en_rpt(struct btc_t *btc, u32 rpt_map, u32 rpt_state);
-void hal_btc_fw_set_slots(struct btc_t *btc, u8 num, struct fbtc_slot *s);
+void hal_btc_fw_chk_struct(struct btc_t *btc);
+void hal_btc_fw_parse_rpt(struct btc_t *btc, u8 *data, u32 len);
+void hal_btc_fw_set_rpt(struct btc_t *btc, u32 rpt_map, u32 rpt_state);
+void hal_btc_fw_set_slots(struct btc_t *btc);
 void hal_btc_fw_set_monreg(struct btc_t *btc);
-bool hal_btc_fw_set_1tdma(struct btc_t *btc,  u16 len, u8 *buf);
-bool hal_btc_fw_set_1slot(struct btc_t *btc,  u16 len, u8 *buf);
 bool hal_btc_fw_set_policy(struct btc_t *btc, bool force_exec, u16 policy_type,
 			   const char* action);
-void hal_btc_fw_set_gpio_dbg(struct btc_t *btc, u8 type, u32 val);
+void hal_btc_fw_set_gpio(struct btc_t *btc, u8 type, u32 val);
 void hal_btc_fw_set_drv_info(struct btc_t *btc, u8 type);
-void hal_btc_fw_set_bt(struct btc_t *btc, u8 type, u16 len, u8* buf);
-void hal_btc_fw_set_drv_event(struct btc_t *btc, u8 type);
 void hal_btc_notify_ps_tdma(struct btc_t *btc, bool tdma_start);
 
 #endif	/* __INC_BTC_FW_H__ */

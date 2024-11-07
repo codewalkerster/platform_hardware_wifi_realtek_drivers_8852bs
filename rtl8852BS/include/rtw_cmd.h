@@ -15,15 +15,9 @@
 #ifndef __RTW_CMD_H_
 #define __RTW_CMD_H_
 
-
 #define C2H_MEM_SZ (16*1024)
 
-
-#define MAX_CMDSZ	1536
-#define MAX_RSPSZ	512
 #define MAX_EVTSZ	1024
-
-#define CMDBUFF_ALIGN_SZ 512
 
 struct cmd_obj {
 	_adapter *padapter;
@@ -41,6 +35,14 @@ struct cmd_obj {
 	u8	*rsp;
 	u32	rspsz;
 	struct submit_ctx *sctx;
+	/*
+	* buffer allocated by handler/callback in cmd_thread, will
+	* 1. got and accessed by caller or
+	* 2. freed by .sctx_rsp_buf_free when caller timeout
+	*/
+	void *sctx_rsp_buf;
+	/* set to function to free sctx_rsp_buf when caller is timeout */
+	void (*sctx_rsp_buf_free)(void *);
 	u8 no_io;
 	/* _sema 	cmd_sem; */
 	_list	list;
@@ -56,10 +58,6 @@ enum {
 
 struct cmd_priv {
 	u8	cmd_seq;
-	u8	*cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*cmd_allocated_buf;
-	u8	*rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
-	u8	*rsp_allocated_buf;
 	u32	cmd_issued_cnt;
 
 	struct dvobj_priv *dvobj;
@@ -158,7 +156,6 @@ struct mgnt_tx_parm {
 
 enum rtw_drvextra_cmd_id {
 	NONE_WK_CID, /*MCC_CMD_WK_CID*/
-	STA_MSTATUS_RPT_WK_CID,
 	#if 0 /*#ifdef CONFIG_CORE_DM_CHK_TIMER*/
 	DYNAMIC_CHK_WK_CID,
 	#endif
@@ -421,7 +418,7 @@ struct addBaRsp_parm {
 	unsigned int start_seq;
 	u8 addr[ETH_ALEN];
 	u8 status;
-	u8 size;
+	u16 size;
 	struct ADDBA_request preq;
 };
 
@@ -508,7 +505,7 @@ extern u8 rtw_setopmode_cmd(_adapter  *padapter, NDIS_802_11_NETWORK_INFRASTRUCT
 
 extern u8 rtw_addbareq_cmd(_adapter *padapter, u8 tid, u8 *addr);
 extern u8 rtw_addbarsp_cmd(_adapter *padapter, u8 *addr, u16 tid,
-			   struct ADDBA_request *paddba_req, u8 status, u8 size,
+			   struct ADDBA_request *paddba_req, u8 status, u16 size,
 			   u16 start_seq);
 extern u8 rtw_delba_cmd(struct _ADAPTER *a, u8 *addr, u16 tid);
 /* add for CONFIG_IEEE80211W, none 11w also can use */
@@ -540,12 +537,12 @@ void phl_add_record(void *d, u8 type, void *p, u32 size);
 #endif
 
 u8 rtw_set_chbw_cmd(_adapter *padapter, struct _ADAPTER_LINK *padapter_link,
-				struct rtw_chan_def *chdef, u8 flags);
+				struct rtw_chan_def *chdef, u8 flags, enum rfk_tri_type rt_type);
 
 #ifdef CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD
 u8 rtw_led_blink_cmd(_adapter *padapter, void *pLed);
 #endif
-extern u8 rtw_tdls_cmd(_adapter *padapter, u8 *addr, u8 option);
+extern u8 rtw_tdls_cmd(_adapter *padapter, u8 *addr, u8 option, u8 flags);
 
 u8 rtw_mp_cmd(_adapter *adapter, u8 mp_cmd_id, u8 flags);
 
@@ -586,7 +583,7 @@ struct txss_cmd_parm {
 
 void rtw_ctrl_txss_update(_adapter *adapter, struct sta_info *sta);
 u8 rtw_ctrl_txss(_adapter *adapter, struct sta_info *sta, bool tx_1ss);
-void rtw_ctrl_tx_ss_by_tp(_adapter *adapter, u8 from_timer);
+void rtw_ctrl_tx_ss_by_tp(_adapter *adapter);
 
 #ifdef DBG_CTRL_TXSS
 void dbg_ctrl_txss(_adapter *adapter, bool tx_1ss);
@@ -599,7 +596,6 @@ extern void rtw_disassoc_cmd_callback(_adapter  *padapter, struct cmd_obj *pcmd)
 void rtw_create_ibss_post_hdl(_adapter *padapter, int status);
 extern void rtw_readtssi_cmdrsp_callback(_adapter	*padapter,  struct cmd_obj *pcmd);
 
-extern void rtw_setstaKey_cmdrsp_callback(_adapter  *padapter,  struct cmd_obj *pcmd);
 extern void rtw_getrttbl_cmdrsp_callback(_adapter  *padapter,  struct cmd_obj *pcmd);
 void rtw_run_cmd(_adapter *padapter, struct cmd_obj *pcmd, bool discard);
 u32 rtw_get_turbo_edca(_adapter *padapter, u8 aifs, u8 ecwmin, u8 ecwmax, u8 txop);
@@ -609,14 +605,7 @@ enum rtw_cmd_id {
 	CMD_DISCONNECT,
 	CMD_CREATE_BSS,
 	CMD_SET_OPMODE,
-#ifdef CONFIG_FSM
-	CMD_SITE_SURVEY,
-#endif
 	CMD_SET_AUTH,
-#ifndef CONFIG_CMD_DISP
-	CMD_SET_KEY,
-	CMD_SET_STAKEY,
-#endif
 	CMD_ADD_BAREQ,
 	CMD_SET_CHANNEL,
 	CMD_TX_BEACON,
@@ -632,6 +621,7 @@ enum rtw_cmd_id {
 	CMD_SET_MESH_PLINK_STATE,
 	CMD_DELBA,
 	CMD_GET_CHANPLAN,
+	CMD_TWT,
 	CMD_ID_MAX
 };
 
@@ -641,10 +631,6 @@ enum rtw_cmd_id {
 	(cmd)->cmdcode == CMD_SET_DRV_EXTRA ? ((struct drvextra_cmd_parm *)(cmd)->parmbuf)->ec_id : ((cmd)->cmdcode == CMD_SET_MLME_EVT ? ((struct rtw_evt_header *)(cmd)->parmbuf)->id : 0), \
 	(cmd)->cmdcode == CMD_SET_DRV_EXTRA ? ((struct drvextra_cmd_parm *)(cmd)->parmbuf)->type : 0
 
-#ifdef CONFIG_CMD_GENERAL
 void rtw_dynamic_chk_wk_sw_hdl(_adapter *padapter);
 void rtw_dynamic_chk_wk_hw_hdl(_adapter *padapter);
-#else
-void rtw_dynamic_chk_wk_hdl(_adapter *padapter);
-#endif
 #endif /* _CMD_H_ */

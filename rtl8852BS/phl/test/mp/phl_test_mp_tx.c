@@ -177,6 +177,17 @@ static enum rtw_phl_status phl_mp_tx_packet(
 	if (arg->tx_method == MP_PMACT_TX) {
 		PHL_INFO("%s: CMD = MP_PMACT_TX\n", __func__);
 		hal_status = rtw_hal_mp_tx_pmac_packet(mp, arg);
+
+		if (!mp->is_phl_wdog_start) {
+			if (arg->start_tx) {
+				/* start phl watchdog timer */
+				rtw_phl_watchdog_start(mp->phl);
+			} else {
+				/* stop phl watchdog timer */
+				rtw_phl_watchdog_stop(mp->phl);
+			}
+		}
+
 		phl_status = RTW_PHL_STATUS_SUCCESS;
 	} else if (arg->tx_method == MP_TMACT_TX) {
 		PHL_INFO("%s: CMD = MP_TMACT_TX\n", __func__);
@@ -417,7 +428,7 @@ static enum rtw_phl_status phl_mp_sw_tx_start(
 	struct rtw_trx_test_param *test_param = &trx_test->test_param;
 
 	if (!arg->start_tx) {
-		_os_mem_set(phl_to_drvpriv(phl_info), test_param, 0, sizeof(test_param));
+		_os_mem_set(phl_to_drvpriv(phl_info), test_param, 0, sizeof(*test_param));
 		test_param->mode = TEST_MODE_PHL_TX_AMPDU_TEST;
 		test_param->ap_mode = 0;
 		test_param->pkt_type = TEST_PKT_TYPE_UNI;
@@ -513,6 +524,30 @@ static enum rtw_phl_status phl_mp_sw_tx_stop(
 	return RTW_PHL_STATUS_SUCCESS;
 }
 
+static enum rtw_phl_status phl_mp_sw_mac_lbk_tx_rpt(
+	struct mp_context *mp, struct mp_tx_arg *arg)
+{
+	rtw_phl_trx_test_get_txreq_stats(mp->phl,
+	                                 &arg->tx_rpt.idle_cnt,
+	                                 &arg->tx_rpt.busy_cnt,
+	                                 &arg->tx_rpt.total_cnt);
+
+	PHL_INFO("%s() idle_cnt=%d , busy=%d, total=%d\n", __func__ ,
+		arg->tx_rpt.idle_cnt, arg->tx_rpt.busy_cnt, arg->tx_rpt.total_cnt);
+
+	/* Record the result */
+	arg->cmd_ok = true;
+	arg->status = RTW_HAL_STATUS_SUCCESS;
+
+	/* Transfer to report */
+	mp->rpt = arg;
+	mp->rpt_len = sizeof(struct mp_tx_arg);
+	mp->buf = NULL;
+	mp->buf_len = 0;
+
+	return RTW_PHL_STATUS_SUCCESS;
+}
+
 
 
 enum rtw_phl_status mp_tx(struct mp_context *mp, struct mp_tx_arg *arg)
@@ -581,6 +616,10 @@ enum rtw_phl_status mp_tx(struct mp_context *mp, struct mp_tx_arg *arg)
 	case MP_TX_CMD_SW_TX_STOP:
 		PHL_INFO("%s: CMD = MP_TX_CMD_SW_TX_STOP\n", __FUNCTION__);
 		phl_status = phl_mp_sw_tx_stop(mp, arg);
+		break;
+	case MP_TX_CMD_MAC_LBK_TX_RPT:
+		PHL_INFO("%s: CMD = MP_TX_CMD_MAC_LBK_TX_RPT\n", __FUNCTION__);
+		phl_status = phl_mp_sw_mac_lbk_tx_rpt(mp, arg);
 		break;
 	default:
 		PHL_INFO("%s: CMD = Unknown\n", __func__);

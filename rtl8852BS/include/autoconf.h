@@ -29,7 +29,6 @@
 #endif /* CONFIG_RTW_DEBUG */
 
 
-/*#define DBG_CONFIG_ERROR_DETECT*/
 /*#define DBG_XMIT_BUF*/
 /*#define DBG_XMIT_BUF_EXT*/
 /*#define CONFIG_FW_C2H_DEBUG*/
@@ -166,12 +165,8 @@
 	 * however limit it to only work in wifi logo test mode
 	 * but not in normal mode currently
 	 */
-	/* #define CONFIG_TDLS_CH_SW */ /* Not support yet */
+	#define CONFIG_TDLS_CH_SW
 #endif /* CONFIG_TDLS */
-
-
-/*#define CONFIG_RTW_80211K*/
-
 
 #define CONFIG_HW_RTS
 
@@ -198,13 +193,12 @@
 #define CONFIG_SDIO_RX_NETBUF_ALLOC_IN_PHL
 #define CONFIG_SDIO_READ_RXFF_IN_INT
 
-
 /*#define RTW_XMIT_THREAD_HIGH_PRIORITY*/
 /*#define RTW_XMIT_THREAD_CB_HIGH_PRIORITY*/
 /*#define RTW_RECV_THREAD_HIGH_PRIORITY*/
 
 #ifdef CONFIG_RTW_NAPI
-/*#define CONFIG_RTW_NAPI_DYNAMIC*/
+#define CONFIG_RTW_NAPI_DYNAMIC
 #define CONFIG_RTW_NAPI_V2
 #ifdef CONFIG_RTW_NAPI_V2
 #define CONFIG_RX_BATCH_IND
@@ -248,7 +242,6 @@
 #define CONFIG_EMBEDDED_FWIMG
 /*#define CONFIG_FILE_FWIMG*/
 #define CONFIG_LONG_DELAY_ISSUE
-/*#define CONFIG_PATCH_JOIN_WRONG_CHANNEL*/
 
 
 /*
@@ -275,18 +268,27 @@
 #endif /* !CONFIG_MP_INCLUDED */
 
 #ifdef CONFIG_POWER_SAVE
-	/*#define CONFIG_RTW_IPS*/
-	#define CONFIG_RTW_LPS
+	/* #define CONFIG_RTW_IPS */
+	/* #define CONFIG_RTW_LPS */
 	#ifdef CONFIG_RTW_IPS
 		#define CONFIG_FWIPS
 	#endif
 	#if defined(CONFIG_RTW_IPS) || defined(CONFIG_RTW_LPS)
+		/* #define CONFIG_RTW_WKARD_PS_DEFAULT_OFF */
 		#define CONFIG_PS_FW_DBG
 	#endif
-	#ifdef CONFIG_RTW_LPS
-	#define CONFIG_RTW_LPS_DEFAULT_OFF
-	#endif
+	#ifdef CONFIG_WOWLAN
+		#define CONFIG_RTW_IPS_WOW
+		#ifdef CONFIG_RTW_IPS_WOW
+			#define CONFIG_FWIPS_WOW
+		#endif /* CONFIG_RTW_IPS_WOW */
+		#define CONFIG_RTW_LPS_WOW
+	#endif /* CONFIG_WOWLAN */
 #endif /* CONFIG_POWER_SAVE */
+
+#ifdef CONFIG_RTW_WNM
+#define RTW_MBO_VALID_TIME 12000 /*large than full scan time */
+#endif /*CONFIG_RTW_WNM*/
 
 #ifdef CONFIG_WOWLAN
 	#define CONFIG_GTK_OL
@@ -305,13 +307,12 @@
 
 
 #define CONFIG_RTW_DISABLE_PHL_LOG
-#define CONFIG_RTW_DEBUG_CCCR
+#define CONFIG_LOGO_MODE_ADJUST_AMSDU_RXFIFO
 
 #define CONFIG_MSG_NUM 100
 #define SCAN_PER_CH_EX_TIME 350
-#define RTW_MAX_SCHEDULE_TIMEOUT 4000 /*unit:ms*/
 
-/*#define CONFIG_XMIT_ACK*/
+#define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
 	/*#define DBG_XMIT_ACK*/
 	#define CONFIG_XMIT_ACK_BY_CCX_RPT

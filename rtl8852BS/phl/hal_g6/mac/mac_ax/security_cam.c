@@ -21,12 +21,6 @@
 #define VALID			0x01
 #define INVALID			0x00
 
-struct addr_sec_only_info {
-	u32 dword0;
-	u32 dword1;
-	u32 dword2;
-};
-
 enum SEC_CAM_KEY_TYPE {
 	SEC_CAM_KEY_TYPE_UNI = 0,
 	SEC_CAM_KEY_TYPE_GROUP = 1,
@@ -53,6 +47,12 @@ enum HW_SUPPORT_ENC_TYPE {
 	HW_SUPPORT_ENC_TYPE_GCMP128 = 0x8,
 	HW_SUPPORT_ENC_TYPE_GCMP256 = 0x9,
 	HW_SUPPORT_ENC_TYPE_BIP128 = 0xA,
+};
+
+struct addr_sec_only_info {
+	u32 dword0;
+	u32 dword1;
+	u32 dword2;
 };
 
 u32 sec_info_tbl_init(struct mac_ax_adapter *adapter)
@@ -211,28 +211,27 @@ u32 fill_addr_cam_sec_only(struct mac_ax_adapter *adapter,
 u32 mac_upd_sec_infotbl(struct mac_ax_adapter *adapter,
 			struct fwcmd_seccam_info *info)
 {
-	u32 ret = 0, s_info_tbl[6], cam_address = 0;
-	u8 *buf, i;
-	#if MAC_AX_PHL_H2C
-	struct rtw_h2c_pkt *h2cb;
-	#else
-	struct h2c_buf *h2cb;
-	#endif
+	u32 ret = MACSUCCESS;
+	struct h2c_info h2c_info = {0};
 	struct fwcmd_seccam_info *tbl;
+#if MAC_AX_FEATURE_DBGPKG
+	u32 s_info_tbl[6], cam_address = 0, i;
 	struct mac_ax_sec_cam_info *s_info;
+#endif
 
-	/*h2c access*/
-	h2cb = h2cb_alloc(adapter, H2CB_CLASS_CMD);
-	if (!h2cb)
+	h2c_info.agg_en = 0;
+	h2c_info.content_len = sizeof(struct fwcmd_seccam_info);
+	h2c_info.h2c_cat = FWCMD_H2C_CAT_MAC;
+	h2c_info.h2c_class = FWCMD_H2C_CL_SEC_CAM;
+	h2c_info.h2c_func = FWCMD_H2C_FUNC_SECCAM_INFO;
+	h2c_info.rec_ack = 0;
+	h2c_info.done_ack = 1;
+
+	tbl = (struct fwcmd_seccam_info *)PLTFM_MALLOC(h2c_info.content_len);
+	if (!tbl) {
+		PLTFM_MSG_ERR("%s malloc h2c error\n", __func__);
 		return MACNPTR;
-
-	buf = h2cb_put(h2cb, sizeof(struct fwcmd_seccam_info));
-	if (!buf) {
-		ret = MACNOBUF;
-		goto fail;
 	}
-
-	tbl = (struct fwcmd_seccam_info *)buf;
 
 	tbl->dword0 = info->dword0;
 	tbl->dword1 = info->dword1;
@@ -242,40 +241,10 @@ u32 mac_upd_sec_infotbl(struct mac_ax_adapter *adapter,
 	tbl->dword5 = info->dword5;
 
 	if (adapter->sm.fwdl == MAC_AX_FWDL_INIT_RDY) {
-		ret = h2c_pkt_set_hdr(adapter, h2cb,
-				      FWCMD_TYPE_H2C,
-				      FWCMD_H2C_CAT_MAC,
-				      FWCMD_H2C_CL_SEC_CAM,
-				      FWCMD_H2C_FUNC_SECCAM_INFO,
-				      0,
-				      1);
-
-		if (ret != MACSUCCESS)
-			goto fail;
-
-		// Return MACSUCCESS if h2c aggregation is enabled and enqueued successfully.
-		// The H2C shall be sent by mac_h2c_agg_tx.
-		ret = h2c_agg_enqueue(adapter, h2cb);
-		if (ret == MACSUCCESS)
-			return MACSUCCESS;
-
-		ret = h2c_pkt_build_txd(adapter, h2cb);
-		if (ret != MACSUCCESS)
-			goto fail;
-
-		#if MAC_AX_PHL_H2C
-		ret = PLTFM_TX(h2cb);
-		#else
-		ret = PLTFM_TX(h2cb->data, h2cb->len);
-		#endif
-		if (ret != MACSUCCESS)
-			goto fail;
-
-		h2cb_free(adapter, h2cb);
-		return MACSUCCESS;
-fail:
-		h2cb_free(adapter, h2cb);
+		ret = mac_h2c_common(adapter, &h2c_info, (u32 *)tbl);
 	} else {
+		PLTFM_MSG_ERR("%s FW not ready\n", __func__);
+#if MAC_AX_FEATURE_DBGPKG
 		/* Indirect Access */
 		s_info = (struct mac_ax_sec_cam_info *)info;
 		s_info_tbl[0] = info->dword0;
@@ -293,9 +262,11 @@ fail:
 					   cpu_to_le32(s_info_tbl[i + 1]),
 					   SEC_CAM_SEL);
 		PLTFM_MSG_WARN("%s ind access end\n", __func__);
-
-		return MACSUCCESS;
+#endif
 	}
+
+	// free allocate memory
+	PLTFM_FREE(tbl, h2c_info.content_len);
 
 	return ret;
 }
@@ -880,14 +851,17 @@ u8 check_key_type(u8 addr_cam_sec_mode, u8 key_index)
 u32 refresh_security_cam_info(struct mac_ax_adapter *adapter,
 			      u8 mac_id)
 {
-	u32 addr_idx = 0, cam_address = 0;
+	u32 addr_idx = 0;
 	u32 i = 0;
 	u8 key_valid[7] = {0}, key_cam_index[7] = {0}, sec_ent_keyid[7] = {0};
 	u8 macid = 0, hit_flag = VALID, key_id_sh = 0, key_cam_idx_sh = 0;
 	u8 key_valid_byte = 0, key_valid_byte_ori = 0, key_type = 0;
 	u8 key_index = 0, sec_ent_mode = 0, sec_cam_idx = 0;
 	u32 dword[10] = {0};
+#if MAC_AX_FEATURE_DBGPKG
+	u32 ret = MACSUCCESS, cam_address = 0;
 	u8 addr_cam_size = get_addr_cam_size(adapter);
+#endif
 
 	struct sec_cam_entry_t *s_entry = NULL;
 	struct sec_cam_table_t *sec_cam_table = adapter->hw_info->sec_cam_table;
@@ -896,16 +870,20 @@ u32 refresh_security_cam_info(struct mac_ax_adapter *adapter,
 	/*read HW key in address cam */
 	for (addr_idx = 0; addr_idx < 0x80; addr_idx++) {
 		hit_flag = INVALID;
-
+#if MAC_AX_FEATURE_DBGPKG
 		PLTFM_MSG_WARN("%s ind access macid %d start\n", __func__, mac_id);
 		cam_address = addr_idx * addr_cam_size;
 		for (i = 0; i < 10; i++) {
-			dword[i] = mac_sram_dbg_read(adapter, cam_address + (i * 4),
-						     ADDR_CAM_SEL);
+			ret = mac_sram_dbg_read(adapter, cam_address + (i * 4), &dword[i],
+						ADDR_CAM_SEL);
+			if (ret != MACSUCCESS) {
+				PLTFM_MSG_ERR("%s read sram fail %d\n", __func__, ret);
+				return ret;
+			}
 			PLTFM_MSG_WARN("CAMADDR<%x>=%x\n", cam_address, dword[i]);
 		}
 		PLTFM_MSG_WARN("%s ind access macid %d end\n", __func__, mac_id);
-
+#endif
 		if ((dword[0] & ADDRCAM_VALID) == VALID) {
 			macid = (dword[6] & ADDRCAM_MACID_MSK);
 
@@ -1031,6 +1009,75 @@ u32 mac_wowlan_secinfo(struct mac_ax_adapter *adapter,
 
 		break;
 	}
+
+	return MACSUCCESS;
+}
+
+u32 sec_eng_init(struct mac_ax_adapter *adapter)
+{
+	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
+	u32 val32 = 0;
+	u32 ret;
+
+	ret = check_mac_en(adapter, 0, MAC_AX_DMAC_SEL);
+	if (ret != MACSUCCESS)
+		return ret;
+
+	val32 = MAC_REG_R32(R_AX_SEC_ENG_CTRL);
+	// init clock
+	val32 |= (B_AX_CLK_EN_CGCMP | B_AX_CLK_EN_WAPI | B_AX_CLK_EN_WEP_TKIP);
+	// init TX encryption
+	val32 |= (B_AX_SEC_TX_ENC | B_AX_SEC_RX_DEC);
+	val32 |= (B_AX_MC_DEC | B_AX_BC_DEC);
+	val32 |= (B_AX_BMC_MGNT_DEC | B_AX_UC_MGNT_DEC);
+#if MAC_AX_8852A_SUPPORT || MAC_AX_8852B_SUPPORT || MAC_AX_8851B_SUPPORT
+	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852A) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852B) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8851B)) {
+		val32 &= ~B_AX_TX_PARTIAL_MODE;
+	}
+#endif
+#if MAC_AX_8852C_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852D_SUPPORT
+#if MAC_AX_USB_SUPPORT
+	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852C) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852D)) {
+		if (adapter->env_info.intf == MAC_AX_INTF_USB)
+			val32 &= ~B_AX_TX_PARTIAL_MODE;
+	}
+#endif
+#endif
+
+	MAC_REG_W32(R_AX_SEC_ENG_CTRL, val32);
+
+	//init MIC ICV append
+	val32 = MAC_REG_R32(R_AX_SEC_MPDU_PROC);
+	val32 |= (B_AX_APPEND_ICV | B_AX_APPEND_MIC);
+
+	// option init
+	MAC_REG_W32(R_AX_SEC_MPDU_PROC, val32);
+
+#if MAC_AX_8852C_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852D_SUPPORT
+	if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852C) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB) ||
+	    is_chip_id(adapter, MAC_AX_CHIP_ID_8852D)) {
+		val32 = MAC_REG_R32(R_AX_SEC_DEBUG1);
+		val32 = SET_CLR_WORD(val32, B_AX_TX_TO, B_AX_TX_TIMEOUT_SEL);
+		MAC_REG_W32(R_AX_SEC_DEBUG1, val32);
+	}
+#endif
+
+#ifdef PHL_FEATURE_AP
+#if MAC_AX_8852C_SUPPORT || MAC_AX_8192XB_SUPPORT || MAC_AX_8852D_SUPPORT
+		if (is_chip_id(adapter, MAC_AX_CHIP_ID_8852C) ||
+		    is_chip_id(adapter, MAC_AX_CHIP_ID_8192XB) ||
+		    is_chip_id(adapter, MAC_AX_CHIP_ID_8852D)) {
+			val32 = MAC_REG_R32(R_AX_RCR);
+			val32 = SET_CLR_WORD(val32, DRVINFO_PATCH_SIZE, B_AX_DRV_INFO_SIZE);
+			MAC_REG_W32(R_AX_RCR, val32);
+		}
+#endif
+#endif
 
 	return MACSUCCESS;
 }

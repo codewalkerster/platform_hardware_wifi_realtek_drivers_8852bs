@@ -29,5 +29,6 @@
 /*@--------------------------[Structure]-------------------------------------*/
 struct bb_info;
 /*@--------------------------[Prptotype]-------------------------------------*/
+u8 halbb_antdiv_get_targetant(struct bb_info *bb);
 void halbb_antdiv_fix_ant(struct bb_info *bb, u8 ant);
 #endif

@@ -73,7 +73,8 @@ enum halrf_event_idx {
 	RF_EVENT_IQK = 1,
 	RF_EVENT_DPK = 2,
 	RF_EVENT_TXGAPK = 3,
-	RF_EVENT_DACK = 4
+	RF_EVENT_DACK = 4,
+	RF_EVENT_RXDCK = 5
 };
 
 enum halrf_event_func {
@@ -150,4 +151,16 @@ void halrf_ops_tssi_disable(struct rf_info *rf, enum phl_phy_idx phy);
 void halrf_ops_do_tssi(struct rf_info *rf, enum phl_phy_idx phy, bool hwtx_en);
 void halrf_ops_dpk(struct rf_info *rf, enum phl_phy_idx phy, bool force);
 void halrf_ops_dack(struct rf_info *rf, bool force);
+void halrf_ops_lck(struct rf_info *rf);
+void halrf_ops_lck_tracking(struct rf_info *rf);
+void halrf_ops_lo_test(struct rf_info *rf, bool is_on, enum rf_path path);
+void halrf_ops_config_radio_to_fw(struct rf_info *rf);
+void halrf_ops_adie_pow_ctrl(struct rf_info *rf, bool rf_off, bool others_off);
+void halrf_ops_afe_pow_ctrl(struct rf_info *rf, bool adda_off, bool pll_off);
+void halrf_ops_set_gpio_by_ch(struct rf_info *rf, enum phl_phy_idx phy, enum band_type band);
+void halrf_rpt_rt_rfk_info(struct rf_info *rf, enum phl_phy_idx phy, u32 type);
+void halrf_bb_reset(struct rf_info *rf, enum phl_phy_idx phy_idx);
+bool halrf_chlk_reload_check(struct rf_info *rf, enum phl_phy_idx phy);
+void halrf_long_pkt_comp(struct rf_info *rf, enum phl_phy_idx phy_idx);
+void halrf_rfk_dz_err_notify(struct rf_info *rf, u32 err_code, u32 err_type);
 #endif

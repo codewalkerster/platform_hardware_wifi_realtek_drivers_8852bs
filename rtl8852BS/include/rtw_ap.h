@@ -38,7 +38,8 @@ void _update_beacon(_adapter *padapter,struct _ADAPTER_LINK *padapter_link,
 /*rtw_update_beacon - (flags) can set to normal enqueue (0) and RTW_CMDF_WAIT_ACK enqueue.
  (flags) = RTW_CMDF_DIRECTLY  is not currently implemented, it will do normal enqueue.*/
 
-void expire_timeout_chk(_adapter *padapter);
+void expire_timeout_post_chk(_adapter *padapter, u32 ap_chk_sta_bmp);
+void expire_timeout_chk(_adapter *padapter, u32 *ap_chk_sta_bmp);
 void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta);
 void rtw_start_bss_hdl_after_chbw_decided(_adapter *adapter, struct _ADAPTER_LINK *adapter_link);
 void rtw_core_ap_prepare(_adapter *padapter, struct createbss_parm *parm);
@@ -66,13 +67,13 @@ void associated_clients_update(_adapter *padapter, u8 updated, u32 sta_info_type
 void bss_cap_update_on_sta_join(_adapter *padapter, struct sta_info *psta);
 u8 bss_cap_update_on_sta_leave(_adapter *padapter, struct sta_info *psta);
 void sta_info_update(_adapter *padapter, struct sta_info *psta);
-u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reason, bool enqueue, u8 disassoc);
+u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u8 subtype, u16 reason, bool enqueue);
 int rtw_sta_flush(_adapter *padapter, bool enqueue);
 void start_ap_mode(_adapter *padapter);
 void stop_ap_mode(_adapter *padapter);
 #endif
 
-void rtw_ap_update_clients_rainfo(struct _ADAPTER *a, enum phl_cmd_type flag);
+void rtw_ap_update_clients_rainfo(struct _ADAPTER *a, u8 flag);
 void rtw_ap_update_bss_bchbw(_adapter *adapter, struct _ADAPTER_LINK *adapter_link,
 				WLAN_BSSID_EX *bss, struct rtw_chan_def *chandef);
 u8 rtw_ap_bchbw_decision(_adapter *adapter, u8 ifbmp, u8 excl_ifbmp, s8 req_band
@@ -143,14 +144,14 @@ void rtw_acs_stop(_adapter *padapter);
 #endif /* defined(CONFIG_RTW_ACS) && defined(WKARD_ACS) */
 void rtw_ap_set_edca(_adapter *padapter, struct _ADAPTER_LINK *padapter_link, enum rtw_ac ac, u32 param);
 
-#ifdef CONFIG_AP_CMD_DISPR
-
 #define CMD_APSTART_ACQUIRE BIT0
 #define CMD_APSTOP_ACQUIRE BIT1
 #define	CMD_APSTOP_STARTED BIT2
 
 enum rtw_phl_status rtw_ap_start_cmd(struct cmd_obj *p);
 enum rtw_phl_status rtw_ap_stop_cmd(struct cmd_obj *p);
+void rtw_ap_stop_set_state(struct _ADAPTER *a, u8 st);
+int rtw_ap_stop_wait(struct _ADAPTER *a);
 enum rtw_phl_status rtw_ap_add_del_sta_cmd(struct _ADAPTER *padapter);
 enum rtw_phl_status rtw_free_bcn_entry(struct _ADAPTER *padapter);
 
@@ -159,6 +160,21 @@ void rtw_cmd_ap_add_del_sta_req_init(struct _ADAPTER *padapter);
 void rtw_cmd_ap_add_del_sta_req_free(struct _ADAPTER *padapter);
 void rtw_update_probe_rsp_basic_rate_and_ext(struct xmit_frame *xframe);
 
+#if CONFIG_AP_REGU_FORBID
+bool rtw_ap_link_regu_forbid_apply(struct _ADAPTER_LINK *alink, bool forbid, bool enqueue);
+bool rtw_ap_link_regu_forbid_update(struct _ADAPTER_LINK *alink, bool enqueue);
+#else
+static inline
+bool rtw_ap_link_regu_forbid_apply(struct _ADAPTER_LINK *alink, bool forbid, bool enqueue)
+{
+	return false;
+}
+static inline
+bool rtw_ap_link_regu_forbid_update(struct _ADAPTER_LINK *alink, bool enqueue)
+{
+	return false;
+}
 #endif
+
 #endif /* end of CONFIG_AP_MODE */
 #endif /*__RTW_AP_H_*/

@@ -15,10 +15,10 @@
 #ifndef _PHL_PS_H_
 #define _PHL_PS_H_
 #ifdef CONFIG_POWER_SAVE
-enum phl_ps_mode {
-	PS_MODE_NONE,
-	PS_MODE_LPS,
-	PS_MODE_IPS
+
+enum phl_ps_op {
+	PS_OP_ENTER,
+	PS_OP_LEAVE
 };
 
 #define PS_MACID_NONE 0xFFFF
@@ -42,10 +42,12 @@ struct ps_cfg {
 	bool pwr_cfg; /* whether to configure pwr lvl */
 	bool proto_cfg; /* whether to configure protocol */
 	u32 *token;
+	bool wow;
 	u8 listen_bcn_mode;
 	u8 awake_interval;
 	u8 smart_ps_mode;
 	u8 bcnnohit_en;
+	u8 lps_force_tx;
 };
 
 #define _get_ps_cap(_phl_info) (&_phl_info->phl_com->dev_cap.ps_cap)

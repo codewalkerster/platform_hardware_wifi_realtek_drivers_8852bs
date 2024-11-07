@@ -40,11 +40,11 @@ bool halbb_edcca_abort(struct bb_info *bb)
 	return false;
 }
 
-#ifdef HALBB_COMPILE_AP2_SERIES
+#if (defined(HALBB_COMPILE_AP2_SERIES) || defined(HALBB_COMPILE_BE1_SERIES))
 void halbb_set_collision_thre(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	u8 th = bb_edcca->colli_th;
 
 	halbb_set_reg_curr_phy(bb, cr->collision_r2t_th, cr->collision_r2t_th_m,
@@ -73,8 +73,54 @@ void halbb_set_collision_thre(struct bb_info *bb)
 			       cr->collision_t2r_th_mcs10_m, th);
 	halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_mcs11,
 			       cr->collision_t2r_th_mcs11_m, th);
-	halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_cck,
-			       cr->collision_t2r_th_cck_m, th);
+	if (bb->ic_type == BB_RTL8852C) {
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_cck,
+				cr->collision_t2r_th_cck_m, th);
+	} else if (bb->ic_type == BB_RTL8922A) {
+		// 8922A new collision CRs
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_mcs12,
+				cr->collision_t2r_th_mcs12_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_mcs13,
+				cr->collision_t2r_th_mcs13_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_cck_1M,
+				cr->collision_t2r_th_cck_1M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_cck_2M,
+				cr->collision_t2r_th_cck_2M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_cck_5p5M,
+				cr->collision_t2r_th_cck_5p5M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_cck_11M,
+				cr->collision_t2r_th_cck_11M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_map2dbm,
+				cr->collision_map2dbm_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_he_dcm_mcs0,
+				cr->collision_t2r_th_he_dcm_mcs0_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_he_dcm_mcs1,
+				cr->collision_t2r_th_he_dcm_mcs1_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_he_dcm_mcs3,
+				cr->collision_t2r_th_he_dcm_mcs3_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_he_dcm_mcs4,
+				cr->collision_t2r_th_he_dcm_mcs4_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_eht_dcm_mcs14,
+				cr->collision_t2r_th_eht_dcm_mcs14_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_eht_dcm_mcs15,
+				cr->collision_t2r_th_eht_dcm_mcs15_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_6M,
+				cr->collision_t2r_th_legacy_6M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_9M,
+				cr->collision_t2r_th_legacy_9M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_12M,
+				cr->collision_t2r_th_legacy_12M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_18M,
+				cr->collision_t2r_th_legacy_18M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_24M,
+				cr->collision_t2r_th_legacy_24M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_36M,
+				cr->collision_t2r_th_legacy_36M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_48M,
+				cr->collision_t2r_th_legacy_48M_m, th);
+		halbb_set_reg_curr_phy(bb, cr->collision_t2r_th_legacy_54M,
+				cr->collision_t2r_th_legacy_54M_m, th);
+	}
 }
 
 void halbb_set_collision_th(struct bb_info *bb)
@@ -82,6 +128,11 @@ void halbb_set_collision_th(struct bb_info *bb)
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
 	u8 rssi_min = bb->bb_ch_i.rssi_min >> 1;
 	s8 collision_thre = 0;
+
+	if (!bb_edcca->collision_th_en) {
+		BB_DBG(bb, DBG_EDCCA, "[%s] collision_th_en= 0\n", __func__);
+		return;
+	}
 
 	/*mapping between rssi and collision thre */
 	collision_thre = 0 - (rssi_min - 110 + COLLOSION_TH_RSSI2VAL) + bb_edcca->colli_ofst;
@@ -106,7 +157,7 @@ void halbb_set_collision_th(struct bb_info *bb)
 void halbb_set_edcca_thre(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	u8 band = bb->hal_com->band[bb->bb_phy_idx].cur_chandef.band;
 	u32 l2h = bb_edcca->th_h;
 
@@ -115,9 +166,16 @@ void halbb_set_edcca_thre(struct bb_info *bb)
 	halbb_set_reg_curr_phy(bb, cr->r_ppdu_level, cr->r_ppdu_level_m, l2h);
 	halbb_set_reg_curr_phy(bb, cr->r_dwn_level, cr->r_dwn_level_m, (u32)bb_edcca->th_hl_diff);
 
-#if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT) || defined(BB_1115_SUPPORT)
+#if defined BB_8852C_SUPPORT
+	if (bb->ic_type == BB_RTL8852C)
+		if (bb_edcca->edcca_mode == EDCCA_NORMAL_MODE)
+			halbb_set_reg_curr_phy(bb, cr->r_obss_level, cr->r_obss_level_m, MAX_2(l2h, (u32)bb_edcca->th_h_obss));
+#endif
+
+#if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT) || defined(BB_1115_SUPPORT) || defined(BB_8922A_SUPPORT)
 	if ((bb->ic_type == BB_RTL8852C) || (bb->ic_type == BB_RLE1115)
-			  || (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP)) {
+			  || (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP)
+			  || (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT)) {
 		if (bb_edcca->edcca_mode == EDCCA_CBP_MODE && band == BAND_ON_6G)
 			halbb_set_reg_curr_phy(bb, cr->r_obss_level, cr->r_obss_level_m, l2h);
 	}
@@ -149,6 +207,10 @@ void halbb_set_edcca_thre(struct bb_info *bb)
 u8 halbb_edcca_thre_transfer_rssi(struct bb_info *bb)
 {
 	struct bb_link_info *bb_link = &bb->bb_link_i;
+#if defined(BB_8922A_SUPPORT)
+	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
+	enum band_type band = bb->hal_com->band[bb->bb_phy_idx].cur_chandef.band;
+#endif
 	u8 rssi_min = bb->bb_ch_i.rssi_min >> 1;
 	u8 edcca_thre = 0;
 
@@ -158,9 +220,18 @@ u8 halbb_edcca_thre_transfer_rssi(struct bb_info *bb)
 		/*mapping between rssi and edcca thre */
 		/* use EDCCA_TH_REF to prevent power offset or PAPR for collision issue*/
 		edcca_thre = rssi_min - 110 + 128 - EDCCA_TH_REF;
-
-		if (edcca_thre <= EDCCA_TH_L2H_LB)
-			edcca_thre = EDCCA_TH_L2H_LB;
+#if defined(BB_8922A_SUPPORT)
+		if (bb->ic_type == BB_RTL8922A && band != BAND_ON_24G) {
+			if (edcca_thre > bb_edcca->th_h_nrml_up)
+				edcca_thre = bb_edcca->th_h_nrml_up;
+			else if (edcca_thre < bb_edcca->th_h_nrml_low)
+				edcca_thre = bb_edcca->th_h_nrml_low;
+		} else
+#endif
+		{
+			if (edcca_thre <= EDCCA_TH_L2H_LB)
+				edcca_thre = EDCCA_TH_L2H_LB;
+		}
 	}
 
 	return edcca_thre;
@@ -172,39 +243,103 @@ void halbb_edcca_thre_calc(struct bb_info *bb)
 	u8 band = bb->hal_com->band[bb->bb_phy_idx].cur_chandef.band;
 	enum channel_width bw = bb->hal_com->band[bb->bb_phy_idx].cur_chandef.bw;
 	u8 th_h = 0;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 
-	if (bb_edcca->edcca_mode == EDCCA_NORMAL_MODE) {
-		BB_DBG(bb, DBG_EDCCA, "Normal Mode without EDCCA\n");
-		#ifdef CONFIG_RTW_IPCAM_TP_SMOOTH
-			th_h = bb_edcca->th_h_2p4g;
-		#else
+	switch (bb_edcca->edcca_mode) {
+		case EDCCA_NORMAL_MODE:
+			BB_DBG(bb, DBG_EDCCA, "Normal Mode without EDCCA\n");
 			th_h = halbb_edcca_thre_transfer_rssi(bb);
-		#endif
-		bb_edcca->th_hl_diff = EDCCA_HL_DIFF_NORMAL;
-	} else if (bb_edcca->edcca_mode == EDCCA_ADAPT_MODE) {
-		if (band == BAND_ON_24G)
-			th_h = bb_edcca->th_h_2p4g;
-		else
-			th_h = bb_edcca->th_h_5g;
-		bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
-	} else if (bb_edcca->edcca_mode == EDCCA_CBP_MODE) {
-		if (band == BAND_ON_6G && (bb->phl_com->id.id & 0x7) == 0x2)
-			th_h = halbb_edcca_thre_transfer_rssi(bb); /* WA 6G 32CU noise figure=7X dBm causes edcca flag always=1 */
-		else if (band == BAND_ON_6G && bw == CHANNEL_WIDTH_160)
-			th_h = bb_edcca->th_h_6g - 10; /* 160M apply 80+80M filter would loss more when interference @ DC*/
-		else if (band == BAND_ON_6G)
-			th_h = bb_edcca->th_h_6g;
-		else
-			th_h = halbb_edcca_thre_transfer_rssi(bb);
-		bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
-	} else if (bb_edcca->edcca_mode == EDCCA_CARRIER_SENSE_MODE) {
-		th_h = bb_edcca->th_h_cs;
-		bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
+			bb_edcca->th_hl_diff = EDCCA_HL_DIFF_NORMAL;
+			break;
+
+		case EDCCA_ADAPT_MODE:
+			if (bb->ic_type == BB_RTL8922A && bb->hal_com->cv == CAV){
+				halbb_set_reg_curr_phy(bb, 0x1008, BIT(23), 1);
+			}
+			if (band == BAND_ON_24G)
+				th_h = bb_edcca->th_h_2p4g;
+			else if (band == BAND_ON_5G)
+				th_h = bb_edcca->th_h_5g;
+			else
+				th_h = bb_edcca->th_h_6g;
+			bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
+			break;
+
+		case EDCCA_CBP_MODE:
+			if (bb->ic_type == BB_RTL8922A){
+				if (bb->hal_com->cv == CAV)
+					halbb_set_reg_curr_phy(bb, 0x1008, BIT(23), 1);
+				halbb_set_reg_curr_phy(bb, 0x603c, BIT(12), 0); //disable r_dccl_after_adc
+				halbb_set_reg_curr_phy(bb, cr->r_dc_remove, cr->r_dc_remove_m, 0);
+			}
+			if (band == BAND_ON_6G && bw == CHANNEL_WIDTH_160)
+				th_h = bb_edcca->th_h_6g - 7; /* 160M apply 80+80M filter would loss more when interference @ DC*/
+			else if (band == BAND_ON_6G)
+				th_h = bb_edcca->th_h_6g;
+			else
+				th_h = halbb_edcca_thre_transfer_rssi(bb);
+			bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
+			break;
+
+		case EDCCA_CARRIER_SENSE_MODE:
+			if (bb->ic_type == BB_RTL8922A){
+				if (bb->hal_com->cv == CAV)
+					halbb_set_reg_curr_phy(bb, 0x1008, BIT(23), 1);
+				halbb_set_reg_curr_phy(bb, 0x603c, BIT(12), 0); //disable r_dccl_after_adc
+				halbb_set_reg_curr_phy(bb, cr->r_dc_remove, cr->r_dc_remove_m, 0);
+			}
+			th_h = bb_edcca->th_h_cs;
+			bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
+			break;
+
+		case EDCCA_UK_MODE:
+			if (bb->ic_type == BB_RTL8922A && bb->hal_com->cv == CAV){
+				halbb_set_reg_curr_phy(bb, 0x1008, BIT(23), 1);
+			}
+			if (band == BAND_ON_24G)
+				th_h = bb_edcca->th_h_2p4g;
+			else if (band == BAND_ON_5G)
+				th_h = bb_edcca->th_h_5g - 5; /* @-67 dBm -3 dB margin for UK */
+			else
+				th_h = bb_edcca->th_h_6g;
+			bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
+			break;
+
+		case EDCCA_SRRC_MODE:
+			if (bb->ic_type == BB_RTL8922A && bb->hal_com->cv == CAV){
+				halbb_set_reg_curr_phy(bb, 0x1008, BIT(23), 1);
+			}
+			if (band == BAND_ON_24G)
+				th_h = bb_edcca->th_h_2p4g;
+			else if (band == BAND_ON_5G)
+				th_h = bb_edcca->th_h_5g;
+			bb_edcca->th_hl_diff = EDCCA_HL_DIFF_ADPTVTY;
+			break;
 	}
+
 	bb_edcca->th_h = th_h;
 	bb_edcca->th_l = bb_edcca->th_h - bb_edcca->th_hl_diff;
 
 	halbb_set_edcca_thre(bb);
+
+	/*    The EDT(energy detection level) specified in the different regulation is under below (2024.3) 
+				CE	FCC	 UK	SRRC
+		2.4G		-57		-57	-57
+		5G		-62		-67	-62
+		6G		-72	-62	-72	
+
+		The current EDCCA TH for homologation in the different regulation is under below
+		(Usually, we add 3dB margin to avoid pwdB inaccuracy)
+				CE	FCC	 UK	SRRC
+		2.4G		-60		-60  -60
+		5G		-65		-70	-65
+		6G		-75	-75	-75	
+
+		Due to the filtering loss, we need to give 13dBm margin for FCC 6G case.
+		However, this bug only happens in AX IC, so it should be changed to 3dBm margin 
+		in later BE IC.
+	*/
+
 }
 
 void halbb_set_edcca_pause_val(struct bb_info *bb, u32 *val_buf, u8 val_len)
@@ -238,7 +373,7 @@ void halbb_edcca_log(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
 	struct edcca_hw_rpt *rpt = &bb_edcca->edcca_rpt;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	enum channel_width bw = 0;
 	struct bb_ch_info *ch = &bb->bb_ch_i;
 	u8 band = bb->hal_com->band[bb->bb_phy_idx].cur_chandef.band;
@@ -287,6 +422,13 @@ void halbb_edcca_log(struct bb_info *bb)
 	switch (bw) {
 	case CHANNEL_WIDTH_80_80:
 	case CHANNEL_WIDTH_160:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG(bb, DBG_EDCCA,
+				"edcca_bitmap{0,1,2,3,4,5,6,7}={%d,%d,%d,%d,%d,%d,%d,%d}\n",
+				rpt->per20_bitmap_0, rpt->per20_bitmap_1, rpt->per20_bitmap_2,
+				rpt->per20_bitmap_3, rpt->per20_bitmap_4, rpt->per20_bitmap_5,
+				rpt->per20_bitmap_6, rpt->per20_bitmap_7);
+		}
 		BB_DBG(bb, DBG_EDCCA,
 		       "pwdb per20{0,1,2,3,4,5,6,7}={%d,%d,%d,%d,%d,%d,%d,%d}(dBm)\n",
 		       rpt->pwdb_0, rpt->pwdb_1, rpt->pwdb_2, rpt->pwdb_3,
@@ -301,6 +443,12 @@ void halbb_edcca_log(struct bb_info *bb)
 		       rpt->pwdb_s40, rpt->pwdb_s80);
 		break;
 	case CHANNEL_WIDTH_80:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG(bb, DBG_EDCCA,
+				"edcca_bitmap{0,1,2,3}={%d,%d,%d,%d}\n",
+				rpt->per20_bitmap_0, rpt->per20_bitmap_1, rpt->per20_bitmap_2,
+				rpt->per20_bitmap_3);
+		}
 		BB_DBG(bb, DBG_EDCCA,
 		       "pwdb per20{0,1,2,3}={%d,%d,%d,%d}(dBm)\n",
 		       rpt->pwdb_0, rpt->pwdb_1, rpt->pwdb_2, rpt->pwdb_3);
@@ -313,6 +461,11 @@ void halbb_edcca_log(struct bb_info *bb)
 		       rpt->pwdb_s40);
 		break;
 	case CHANNEL_WIDTH_40:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG(bb, DBG_EDCCA,
+				"edcca_bitmap{0,1}={%d,%d}\n",
+				rpt->per20_bitmap_0, rpt->per20_bitmap_1);
+		}
 		BB_DBG(bb, DBG_EDCCA, "pwdb per20{0,1}={%d,%d}(dBm)\n",
 		       rpt->pwdb_0, rpt->pwdb_1);
 		BB_DBG(bb, DBG_EDCCA, "path=%d, flag {FB,p20,s20}={%d,%d,%d}\n",
@@ -321,6 +474,11 @@ void halbb_edcca_log(struct bb_info *bb)
 		       rpt->pwdb_fb, rpt->pwdb_p20, rpt->pwdb_s20);
 		break;
 	case CHANNEL_WIDTH_20:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG(bb, DBG_EDCCA,
+				"edcca_bitmap{0}={%d}\n",
+				rpt->per20_bitmap_0);
+		}
 		BB_DBG(bb, DBG_EDCCA, "pwdb per20{0}={%d}(dBm)\n", rpt->pwdb_0);
 		BB_DBG(bb, DBG_EDCCA, "path=%d, flag {FB,p20}={%d,%d}\n",
 		       rpt->path, rpt->flag_fb, rpt->flag_p20);
@@ -336,27 +494,33 @@ void halbb_edcca_get_result(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
 	struct edcca_hw_rpt *rpt = &bb_edcca->edcca_rpt;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	u32 tmp = 0;
 	u64 tmp_linear = 0;
 	u32 rpt_sel_addr = cr->r_edcca_rpt_sel;
 	u32 rpt_sel_bmsk = cr->r_edcca_rpt_sel_m;
 	u32 rpt_a_addr = cr->r_edcca_rpt_a, rpt_a_bmsk = cr->r_edcca_rpt_a_m;
 	u32 rpt_b_addr = cr->r_edcca_rpt_b, rpt_b_bmsk = cr->r_edcca_rpt_b_m;
+	u32 rpt_b_sel_addr = cr->r_edcca_rptreg_sel_be_dd;
+	u32 rpt_b_sel_bmak = cr->r_edcca_rptreg_sel_be_dd_m;
+
 	enum channel_width bw = 0;
 
 	bw = bb->hal_com->band[bb->bb_phy_idx].cur_chandef.bw;
 
 #ifdef HALBB_DBCC_SUPPORT
 	if (bb->bb_phy_idx == HW_PHY_1) {
-		rpt_sel_addr = cr->r_edcca_rpt_sel_p1;
-		rpt_sel_bmsk = cr->r_edcca_rpt_sel_p1_m;
-		rpt_a_addr = cr->r_edcca_rpt_a_p1;
-		rpt_a_bmsk = cr->r_edcca_rpt_a_p1_m;
-		rpt_b_addr = cr->r_edcca_rpt_b_p1;
-		rpt_b_bmsk = cr->r_edcca_rpt_b_p1_m;
+		if (bb->ic_type & BB_IC_DBCC_PHY0_PHY1) {
+			rpt_sel_addr = cr->r_edcca_rpt_sel_p1;
+			rpt_sel_bmsk = cr->r_edcca_rpt_sel_p1_m;
+			rpt_a_addr = cr->r_edcca_rpt_a_p1;
+			rpt_a_bmsk = cr->r_edcca_rpt_a_p1_m;
+			rpt_b_addr = cr->r_edcca_rpt_b_p1;
+			rpt_b_bmsk = cr->r_edcca_rpt_b_p1_m;
+		}
 	}
 #endif
+
 	halbb_set_reg(bb, rpt_sel_addr, rpt_sel_bmsk, 0);
 	tmp = halbb_get_reg(bb, rpt_a_addr, rpt_a_bmsk);
 	rpt->pwdb_1 = (s8)(((tmp & MASKBYTE2) >> 16) - 256);
@@ -371,6 +535,23 @@ void halbb_edcca_get_result(struct bb_info *bb)
 	rpt->pwdb_s20 = (s8)(((tmp & MASKBYTE1) >> 8) - 256);
 	rpt->pwdb_p20 = (s8)(((tmp & MASKBYTE2) >> 16) - 256);
 	rpt->pwdb_fb = (s8)(((tmp & MASKBYTE3) >> 24) - 256);
+
+	if (bb->ic_type == BB_RTL8922A) {
+		halbb_set_reg(bb, rpt_b_sel_addr, rpt_b_sel_bmak, 4);
+		tmp = halbb_get_reg(bb, rpt_b_addr, rpt_b_bmsk);
+		rpt->pwdb_0 = (s8)(((tmp & MASKBYTE3) >> 24) - 256);
+		rpt->pwdb_1 = (s8)(((tmp & MASKBYTE2) >> 16) - 256);
+		halbb_set_reg(bb, rpt_sel_addr, rpt_sel_bmsk, 0);
+		tmp = halbb_get_reg(bb, rpt_a_addr, rpt_a_bmsk);
+		rpt->per20_bitmap_0 = (bool)(tmp & BIT(0));
+		rpt->per20_bitmap_1 = (bool)(tmp & BIT(1) >> 1);
+		rpt->per20_bitmap_2 = (bool)(tmp & BIT(2) >> 2);
+		rpt->per20_bitmap_3 = (bool)(tmp & BIT(3) >> 3);
+		rpt->per20_bitmap_4 = (bool)(tmp & BIT(4) >> 4);
+		rpt->per20_bitmap_5 = (bool)(tmp & BIT(5) >> 5);
+		rpt->per20_bitmap_6 = (bool)(tmp & BIT(6) >> 6);
+		rpt->per20_bitmap_7 = (bool)(tmp & BIT(7) >> 7);
+	}
 
 	switch (bw) {
 	case CHANNEL_WIDTH_80_80:
@@ -393,6 +574,18 @@ void halbb_edcca_get_result(struct bb_info *bb)
 		rpt->pwdb_7 = (s8)(((tmp & MASKBYTE2) >> 16) - 256);
 		rpt->pwdb_6 = (s8)(((tmp & MASKBYTE3) >> 24) - 256);
 
+		if (bb->ic_type == BB_RTL8922A) {
+			halbb_set_reg(bb, rpt_b_sel_addr, rpt_b_sel_bmak, 4);
+			tmp = halbb_get_reg(bb, rpt_b_addr, rpt_b_bmsk);
+			rpt->pwdb_2 = (s8)(((tmp & MASKBYTE1) >> 8) - 256);
+			rpt->pwdb_3 = (s8)((tmp & MASKBYTE0) - 256);
+			halbb_set_reg(bb, rpt_b_sel_addr, rpt_b_sel_bmak, 5);
+			tmp = halbb_get_reg(bb, rpt_b_addr, rpt_b_bmsk);
+			rpt->pwdb_4 = (s8)(((tmp & MASKBYTE3) >> 24) - 256);
+			rpt->pwdb_5 = (s8)(((tmp & MASKBYTE2) >> 16) - 256);
+			rpt->pwdb_6 = (s8)(((tmp & MASKBYTE1) >> 8) - 256);
+			rpt->pwdb_7 = (s8)((tmp & MASKBYTE0) - 256);
+		}
 		/*52C has hw bug of pwdb-FB is 0 when bw=160M*/
 		if (bb->ic_type == BB_RTL8852C) {
 			if ((rpt->pwdb_p20 == (s8)(EDCCA_PWDB_EXCLU_TX)) ||
@@ -423,6 +616,12 @@ void halbb_edcca_get_result(struct bb_info *bb)
 		tmp = halbb_get_reg(bb, rpt_b_addr, rpt_b_bmsk);
 		rpt->pwdb_s80 = (s8)(((tmp & MASKBYTE1) >> 8) - 256);
 		rpt->pwdb_s40 = (s8)(((tmp & MASKBYTE2) >> 16) - 256);
+		if (bb->ic_type == BB_RTL8922A) {
+			halbb_set_reg(bb, rpt_b_sel_addr, rpt_b_sel_bmak, 4);
+			tmp = halbb_get_reg(bb, rpt_b_addr, rpt_b_bmsk);
+			rpt->pwdb_2 = (s8)(((tmp & MASKBYTE1) >> 8) - 256);
+			rpt->pwdb_3 = (s8)((tmp & MASKBYTE0) - 256);
+		}
 		break;
 	case CHANNEL_WIDTH_40:
 		/*52A/52B/52C/51B has hw bug of pwdb-FB is 0 when bw=40M*/
@@ -453,11 +652,21 @@ void halbb_edcca(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
 
+	halbb_show_cr_cnt(bb, BB_WD_EDCCA);
+
+#ifdef HALBB_FW_OFLD_SUPPORT
+	if (bb->bb_cmn_hooker->skip_io_init_en && !bb_edcca->init_edcca_cr_success) {
+		halbb_edcca_init_io_en(bb);
+		BB_DBG(bb, DBG_EDCCA, "init_edcca_cr_success = %d\n", bb_edcca->init_edcca_cr_success);
+		return;
+	}
+#endif
+
 	bb_edcca->edcca_mode = bb->phl_com->edcca_mode;
 
 	if (halbb_edcca_abort(bb) == false) { /*show edcca log when edcca is paused*/
 		halbb_edcca_thre_calc(bb);
-#ifdef HALBB_COMPILE_AP2_SERIES
+#if (defined(HALBB_COMPILE_AP2_SERIES) || defined(HALBB_COMPILE_BE1_SERIES))
 		halbb_set_collision_th(bb);
 #endif
 	}
@@ -487,23 +696,25 @@ void halbb_fw_edcca(struct bb_info *bb)
 	       bb_edcca->edcca_mode);
 
 	/*8852BP FW needs infomation of band and mode even if edcca is paused*/
-	if (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BP) {
+	if ((bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BP) || (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BPT)){
 		if (halbb_edcca_abort(bb))
 			return;
 	}
 
 	/*only for 8852C CAV & 8852BP / 6E Homologation*/
 	if (!(((hal->cv == CAV) && (bb->ic_type == BB_RTL8852C)) ||
-	      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP)))
+	      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP) ||
+	      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT)))
 		return;
 
 	/* Only for NIC side*/
-	if (dev->rfe_type >= 50)
+	if (bb->bb_cmn_hooker->bb_drv_type == BB_AP_DRV)
 		return;
 
 	/*8852BP FW needs infomation of band and mode even if edcca is normal mode*/
 	if ((bb_edcca->edcca_mode == EDCCA_NORMAL_MODE) &&
-	    (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BP)) {
+	    ((bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BP) ||
+	    (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BPT))) {
 		BB_DBG(bb, DBG_EDCCA, "Normal Mode without FW EDCCA\n");
 		return;
 	}
@@ -514,7 +725,7 @@ void halbb_fw_edcca(struct bb_info *bb)
 	BB_DBG(bb, DBG_EDCCA, "[FW EDCCA H2C] Mode=%d, Band=%d\n", 
 				fw_edcca_i->mode, fw_edcca_i->band);
 	/*8852BP FW EDCCA don't need edcca th*/
-	if (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BP)
+	if ((bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BP) || (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BPT))
 		BB_DBG(bb, DBG_EDCCA, "[FW EDCCA H2C] Adapt-5G_th=-%d, Adapt-2.4G_th=-%d,Carrier-sense_th=-%d\n", 
 					fw_edcca_i->pwr_th_5g, fw_edcca_i->pwr_th_2p4, 
 					fw_edcca_i->pwr_th_cs);
@@ -553,7 +764,7 @@ void halbb_fw_i(struct bb_info *bb, u8 enable)
 void halbb_edcca_cmn_log(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	u8 edcca_p_th = 0;
 	u8 edcca_s_th = 0;
 	u8 edcca_diff = 0;
@@ -564,15 +775,18 @@ void halbb_edcca_cmn_log(struct bb_info *bb)
 	if (bb->bb_watchdog_mode != BB_WATCHDOG_NORMAL)
 		return;
 
-	edcca_en = (bool)halbb_get_reg(bb, cr->r_snd_en, cr->r_snd_en_m);
-	edcca_diff = (u8)halbb_get_reg(bb, cr->r_dwn_level, cr->r_dwn_level_m);
-	edcca_p_th = (u8)halbb_get_reg(bb, cr->r_edcca_level_p,
-				       cr->r_edcca_level_p_m);
-	edcca_s_th = (u8)halbb_get_reg(bb, cr->r_edcca_level,
-				       cr->r_edcca_level_m);
-	ppdu_s_th = (u8)halbb_get_reg(bb, cr->r_ppdu_level,
-				       cr->r_ppdu_level_m);
-	obss_th = (u8)halbb_get_reg(bb, cr->r_obss_level, cr->r_obss_level_m);
+	edcca_en = (bool)halbb_get_reg_cmn(bb, cr->r_snd_en, cr->r_snd_en_m,
+				       bb->bb_phy_idx);
+	edcca_diff = (u8)halbb_get_reg_cmn(bb, cr->r_dwn_level, cr->r_dwn_level_m,
+				       bb->bb_phy_idx);
+	edcca_p_th = (u8)halbb_get_reg_cmn(bb, cr->r_edcca_level_p,
+				       cr->r_edcca_level_p_m, bb->bb_phy_idx);
+	edcca_s_th = (u8)halbb_get_reg_cmn(bb, cr->r_edcca_level,
+				       cr->r_edcca_level_m, bb->bb_phy_idx);
+	ppdu_s_th = (u8)halbb_get_reg_cmn(bb, cr->r_ppdu_level,
+				       cr->r_ppdu_level_m, bb->bb_phy_idx);
+	obss_th = (u8)halbb_get_reg_cmn(bb, cr->r_obss_level, cr->r_obss_level_m,
+				       bb->bb_phy_idx);
 
 	BB_DBG(bb, DBG_CMN,
 	       "[EDCCA]mode=%d,en=%d,diff=%d,edcca_th{p,s}={%d,%d},ppdu_s_th=%d,obss_th=%d\n",
@@ -585,7 +799,7 @@ void halbb_edcca_cnsl_log(struct bb_info *bb, u32 *_used, char *output,
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
 	struct edcca_hw_rpt *rpt = &bb_edcca->edcca_rpt;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	struct bb_ch_info *ch = &bb->bb_ch_i;
 	enum channel_width bw = 0;
 	u32 used = *_used;
@@ -606,7 +820,7 @@ void halbb_edcca_cnsl_log(struct bb_info *bb, u32 *_used, char *output,
 		    bb_edcca->th_h_5g - 128, bb_edcca->th_h_2p4g - 128,
 		    bb_edcca->th_h_cs - 128, bb_edcca->th_h_6g - 128);
 	BB_DBG_CNSL(out_len, used, output + used, out_len - used,
-		    "Mode=%d, th_h=%d(dBm), th_l=%d(dBm)\n",
+		    "(0:normal, 1:adapt, 2:CS, 3:CBP)Mode=%d, th_h=%d(dBm), th_l=%d(dBm)\n",
 		    bb_edcca->edcca_mode, bb_edcca->th_h - 128,
 		    bb_edcca->th_l - 128);
 
@@ -642,6 +856,13 @@ void halbb_edcca_cnsl_log(struct bb_info *bb, u32 *_used, char *output,
 	switch (bw) {
 	case CHANNEL_WIDTH_80_80:
 	case CHANNEL_WIDTH_160:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG_CNSL(out_len, used, output + used, out_len - used,
+				"edcca_bitmap{0,1,2,3,4,5,6,7}={%d,%d,%d,%d,%d,%d,%d,%d}\n",
+				rpt->per20_bitmap_0, rpt->per20_bitmap_1, rpt->per20_bitmap_2,
+				rpt->per20_bitmap_3, rpt->per20_bitmap_4, rpt->per20_bitmap_5,
+				rpt->per20_bitmap_6, rpt->per20_bitmap_7);
+		}
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
 			    "pwdb per20{0,1,2,3,4,5,6,7}={%d,%d,%d,%d,%d,%d,%d,%d}(dBm)\n",
 			    rpt->pwdb_0, rpt->pwdb_1, rpt->pwdb_2,
@@ -657,6 +878,12 @@ void halbb_edcca_cnsl_log(struct bb_info *bb, u32 *_used, char *output,
 			    rpt->pwdb_s40, rpt->pwdb_s80);
 		break;
 	case CHANNEL_WIDTH_80:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG_CNSL(out_len, used, output + used, out_len - used,
+				"edcca_bitmap{0,1,2,3}={%d,%d,%d,%d}\n",
+				rpt->per20_bitmap_0, rpt->per20_bitmap_1, rpt->per20_bitmap_2,
+				rpt->per20_bitmap_3);
+		}
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
 			    "pwdb per20{0,1,2,3}={%d,%d,%d,%d}(dBm)\n",
 			    rpt->pwdb_0, rpt->pwdb_1, rpt->pwdb_2, rpt->pwdb_3);
@@ -670,6 +897,11 @@ void halbb_edcca_cnsl_log(struct bb_info *bb, u32 *_used, char *output,
 			    rpt->pwdb_s40);
 		break;
 	case CHANNEL_WIDTH_40:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG_CNSL(out_len, used, output + used, out_len - used,
+				"edcca_bitmap{0,1}={%d,%d}\n",
+				rpt->per20_bitmap_0, rpt->per20_bitmap_1);
+		}
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
 			    "pwdb per20{0,1}={%d,%d}(dBm)\n",
 			    rpt->pwdb_0, rpt->pwdb_1);
@@ -682,6 +914,10 @@ void halbb_edcca_cnsl_log(struct bb_info *bb, u32 *_used, char *output,
 			    rpt->pwdb_fb, rpt->pwdb_p20, rpt->pwdb_s20);
 		break;
 	case CHANNEL_WIDTH_20:
+		if (bb->ic_type == BB_RTL8922A) {
+			BB_DBG_CNSL(out_len, used, output + used, out_len - used,
+				"edcca_bitmap{0}={%d}\n",rpt->per20_bitmap_0);
+		}
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
 			    "pwdb per20{0}={%d}(dBm)\n", rpt->pwdb_0);
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
@@ -740,7 +976,8 @@ void halbb_edcca_dbg(struct bb_info *bb, char input[][16], u32 *_used,
 			 "[EDCCA] Set power threshold(-dBm): {1} {Adapt-5G_th} {Adapt-2.4G_th} {Carrier-sense_th} {CBP-6G_th}\n");
 #if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT)
 		if ((bb->ic_type == BB_RTL8852C) ||
-		    (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP))
+		    (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP) ||
+		    (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT))
 			BB_DBG_CNSL(out_len, used, output + used, out_len - used,
 				    "[Manually trigger FW EDCCA] : 2\n");
 #endif
@@ -773,7 +1010,8 @@ void halbb_edcca_dbg(struct bb_info *bb, char input[][16], u32 *_used,
 #if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT)
 	} else if (var[0] == 2) {
 		if (!(((hal->cv == CAV) && (bb->ic_type == BB_RTL8852C)) ||
-		      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP)))
+		      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP) ||
+		      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT)))
 			return;
 
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
@@ -788,10 +1026,12 @@ void halbb_edcca_dbg(struct bb_info *bb, char input[][16], u32 *_used,
 		BB_DBG_CNSL(out_len, used, output + used, out_len - used,
 			    "Set EDCCA mode = %s\n",
 			    (bb_edcca->edcca_mode == EDCCA_NORMAL_MODE) ?
-			    "Normal mode" : "Adaptivity/Carrier Sense/CBP mode");
+			    "Normal mode" : (bb_edcca->edcca_mode == EDCCA_ADAPT_MODE) ?"Adaptivity mode": 
+			    (bb_edcca->edcca_mode == EDCCA_CARRIER_SENSE_MODE) ? "Carrier Sense mode" : "CBP mode");
 
 		if (!(((hal->cv == CAV) && (bb->ic_type == BB_RTL8852C)) ||
-		      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP)))
+		      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP) ||
+		      (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT)))
 			return;
 
 #if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT)
@@ -823,15 +1063,15 @@ void halbb_edcca_dev_hw_cap(struct bb_info *bb)
 {
 	struct rtw_hal_com_t *hal = bb->hal_com;
 
-	if (bb->ic_type == BB_RTL8851B) {/* For SingleTone shift 1MHz*/
-		hal->dev_hw_cap.edcca_cap.edcca_carrier_sense_th = CARRIER_SENSE - 6;
-		hal->dev_hw_cap.edcca_cap.edcca_adap_th_5g = EDCCA_5G;
-		hal->dev_hw_cap.edcca_cap.edcca_adap_th_2g = EDCCA_2G;
+	if (bb->ic_type == BB_RTL8851B) {/* For SingleTone shift 1MHz & low antenna gain*/
+		hal->dev_hw_cap.edcca_cap.edcca_carrier_sense_th = CARRIER_SENSE - 8;
+		hal->dev_hw_cap.edcca_cap.edcca_adap_th_5g = EDCCA_5G - 2;
+		hal->dev_hw_cap.edcca_cap.edcca_adap_th_2g = EDCCA_2G - 2;
 	} else if (bb->ic_type == BB_RTL8852B) { /*[HALBB-126] for SingleTone shift 1MHz*/
-#if (defined(BB_8852B_SUPPORT))
-		if (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP)
+
+		if ((bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP) || (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BPT))
 			hal->dev_hw_cap.edcca_cap.edcca_cbp_th_6g = CBP_6G;
-#endif
+
 		hal->dev_hw_cap.edcca_cap.edcca_carrier_sense_th = CARRIER_SENSE - 6;
 		hal->dev_hw_cap.edcca_cap.edcca_adap_th_5g = EDCCA_5G;
 		hal->dev_hw_cap.edcca_cap.edcca_adap_th_2g = EDCCA_2G;
@@ -840,6 +1080,15 @@ void halbb_edcca_dev_hw_cap(struct bb_info *bb)
 		hal->dev_hw_cap.edcca_cap.edcca_adap_th_5g = EDCCA_5G - 3;
 		hal->dev_hw_cap.edcca_cap.edcca_adap_th_2g = EDCCA_2G - 3;
 		hal->dev_hw_cap.edcca_cap.edcca_carrier_sense_th = CARRIER_SENSE - 10;
+	} else if (bb->ic_type == BB_RTL8922A) {
+		hal->dev_hw_cap.edcca_cap.edcca_cbp_th_6g = CBP_6G;
+		hal->dev_hw_cap.edcca_cap.edcca_adap_th_5g = EDCCA_5G;
+		hal->dev_hw_cap.edcca_cap.edcca_adap_th_2g = EDCCA_2G;
+		hal->dev_hw_cap.edcca_cap.edcca_carrier_sense_th = CARRIER_SENSE;
+#if (HLABB_CODE_BASE_NUM >= 34)
+		hal->dev_hw_cap.edcca_cap.edcca_th_normal_up = EDCCA_TH_H_UP;
+		hal->dev_hw_cap.edcca_cap.edcca_th_normal_low= EDCCA_TH_H_LOW;
+#endif
 	} else {
 		hal->dev_hw_cap.edcca_cap.edcca_carrier_sense_th = CARRIER_SENSE;
 		hal->dev_hw_cap.edcca_cap.edcca_adap_th_5g = EDCCA_5G;
@@ -848,54 +1097,53 @@ void halbb_edcca_dev_hw_cap(struct bb_info *bb)
 }
 
 
-void halbb_edcca_init(struct bb_info *bb)
+void halbb_edcca_init_io_en(struct bb_info *bb)
 {
 	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
 	struct bb_h2c_fw_edcca *fw_edcca_i = &bb->bb_fw_edcca_i;
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 	struct rtw_phl_com_t *phl = bb->phl_com;
-
-	if(phl_is_mp_mode(bb->phl_com))
-		return;
 
 	bb_edcca->edcca_mode = phl->edcca_mode;
 
 	bb_edcca->th_h = EDCCA_MAX;
 	bb_edcca->th_l = EDCCA_MAX;
+	bb_edcca->th_h_obss= (u8)halbb_get_reg(bb, cr->r_obss_level, cr->r_obss_level_m);
 	bb_edcca->th_h_lb = 46;
 	bb_edcca->pwrofst = (u8)halbb_get_reg(bb, cr->r_pwrofst,
 					      cr->r_pwrofst_m);
-#if defined(BB_1115_SUPPORT)
-		if ((bb->ic_type == BB_RLE1115)) {
-			halbb_set_reg_phy0_1(bb, cr->r_obss_level, cr->r_obss_level_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_p, cr->r_edcca_level_p_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level, cr->r_edcca_level_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_ppdu_level, cr->r_ppdu_level_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_s80_1, cr->r_edcca_level_s80_1_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_s80_1_p, cr->r_edcca_level_s80_1_p_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_s80_2, cr->r_edcca_level_s80_2_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_s80_2_p, cr->r_edcca_level_s80_2_p_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_s80_3, cr->r_edcca_level_s80_3_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_edcca_level_s80_3_p, cr->r_edcca_level_s80_3_p_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_ppdu_level_p, cr->r_ppdu_level_p_m, EDCCA_MAX);
-			halbb_set_reg_phy0_1(bb, cr->r_snd_en, cr->r_snd_en_m, false);
-			halbb_set_reg_phy0_1(bb, cr->r_snd_en_s80_1, cr->r_snd_en_s80_1_m, false);
-			halbb_set_reg_phy0_1(bb, cr->r_snd_en_s80_2, cr->r_snd_en_s80_2_m, false);
-			halbb_set_reg_phy0_1(bb, cr->r_snd_en_s80_3, cr->r_snd_en_s80_3_m, false);
-		}
+	bb_edcca->collision_th_en = true;
+
+#if defined(BB_8922A_SUPPORT)
+	// 8922A Acut EDCCA WA settings
+	if(bb->ic_type == BB_RTL8922A && bb->hal_com->cv == CAV){
+		halbb_set_reg_curr_phy(bb, 0xc74, BIT(4), 0);
+		halbb_set_reg_curr_phy(bb, 0xb4, BIT(17), 0);
+		halbb_set_reg_curr_phy(bb, 0xb8, BIT(1), 0);
+		halbb_set_reg_curr_phy(bb, 0xb8, BIT(0), 0);
+		halbb_set_reg_curr_phy(bb, 0x6a14, BIT(31), 0);
+		halbb_set_reg_curr_phy(bb, 0x6a14, BIT(31), 1);
+		halbb_set_reg_curr_phy(bb, 0xb8, BIT(0), 1);
+	}
 #endif
+
 
 	// EDCCA
 	/* 6G only for 52C/52BP*/
-#if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT) || defined(BB_1115_SUPPORT)
+#if defined(BB_8852C_SUPPORT) || defined(BB_8852B_SUPPORT) || defined(BB_1115_SUPPORT) || defined(BB_8922A_SUPPORT)
 	if ((bb->ic_type == BB_RTL8852C) || (bb->ic_type == BB_RLE1115)
-		       || (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP))
+		       || (bb->ic_sub_type == BB_IC_SUB_TYPE_8852B_8852BP) ||(bb->ic_type == BB_RTL8922A)
+		       || (bb->ic_sub_type != BB_IC_SUB_TYPE_8852B_8852BPT))
 		bb_edcca->th_h_6g = phl->dev_cap.edcca_cap.edcca_cbp_th_6g;
 #endif
 
 	bb_edcca->th_h_5g = phl->dev_cap.edcca_cap.edcca_adap_th_5g;
 	bb_edcca->th_h_2p4g = phl->dev_cap.edcca_cap.edcca_adap_th_2g;
 	bb_edcca->th_h_cs = phl->dev_cap.edcca_cap.edcca_carrier_sense_th;
+#if (HLABB_CODE_BASE_NUM >= 34)
+	bb_edcca->th_h_nrml_up = phl->dev_cap.edcca_cap.edcca_th_normal_up;
+	bb_edcca->th_h_nrml_low= phl->dev_cap.edcca_cap.edcca_th_normal_low;
+#endif
 
 	// FW EDCCA
 	fw_edcca_i->pwr_th_5g = phl->dev_cap.edcca_cap.edcca_adap_th_5g;
@@ -906,12 +1154,36 @@ void halbb_edcca_init(struct bb_info *bb)
 	bb_edcca->colli_ofst = COLLOSION_TH_OFST;
 	/*Let collision_T2R_cnt be 9.6 us, or collision_tail could always be 1 when collision_T2R_cnt >= 12.8us, WLANBB-2297*/
 	halbb_set_reg_curr_phy(bb, cr->r_collision_t2r_state, cr->r_collision_t2r_state_m, 0x29);
+
+	bb_edcca->init_edcca_cr_success = true;
 }
 
+void halbb_edcca_init(struct bb_info *bb)
+{
+	struct bb_edcca_info *bb_edcca = &bb->bb_edcca_i;
+	struct bb_h2c_fw_edcca *fw_edcca_i = &bb->bb_fw_edcca_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
+	struct rtw_phl_com_t *phl = bb->phl_com;
+
+	if(phl_is_mp_mode(bb->phl_com))
+		return;
+	
+#ifdef HALBB_FW_OFLD_SUPPORT
+	BB_DBG(bb, DBG_PHY_STS, "[%s][phy=%d]skip_io_init_en = %d\n",
+	       __func__, bb->bb_phy_idx, bb->bb_cmn_hooker->skip_io_init_en);
+
+	if (bb->bb_cmn_hooker->skip_io_init_en) {
+		bb_edcca->init_edcca_cr_success = false;
+		return;
+	}
+#endif
+
+	halbb_edcca_init_io_en(bb);
+}
 
 void halbb_cr_cfg_edcca_init(struct bb_info *bb)
 {
-	struct bb_edcca_cr_info *cr = &bb->bb_edcca_i.bb_edcca_cr_i;
+	struct bb_edcca_cr_info *cr = &bb->bb_cmn_hooker->bb_edcca_cr_i;
 
 	switch (bb->cr_type) {
 
@@ -1181,7 +1453,112 @@ void halbb_cr_cfg_edcca_init(struct bb_info *bb)
 		cr->r_pwrofst = STFDET_R_PWOFST_BE0; // only for s80_0
 		cr->r_pwrofst_m = STFDET_R_PWOFST_BE0_M; // only for s80_0
 		break;
-	
+#endif
+#ifdef HALBB_COMPILE_BE1_SERIES
+	case BB_BE1:
+		cr->r_snd_en = SEG0R_SND_EN_BE1;
+		cr->r_snd_en_m = SEG0R_SND_EN_BE1_M;
+		cr->r_dwn_level = SEG0R_DWN_LVL_BE1;
+		cr->r_dwn_level_m = SEG0R_DWN_LVL_BE1_M;
+		cr->r_edcca_level = SEG0R_EDCCA_LVL_BE1;
+		cr->r_edcca_level_m = SEG0R_EDCCA_LVL_BE1_M;
+		cr->r_edcca_level_p = SEG0R_EDCCA_LVL_P_BE1;
+		cr->r_edcca_level_p_m = SEG0R_EDCCA_LVL_P_BE1_M;
+		cr->r_edcca_rpt_a = EDCCA_IOQ_P0_A_BE1;
+		cr->r_edcca_rpt_a_m = EDCCA_IOQ_P0_A_BE1_M;
+		cr->r_edcca_rpt_b = EDCCA_IOQ_P0_B_BE1;
+		cr->r_edcca_rpt_b_m = EDCCA_IOQ_P0_B_BE1_M;
+		cr->r_edcca_rpt_a_p1 = EDCCA_IOQ_P1_A_BE1;
+		cr->r_edcca_rpt_a_p1_m = EDCCA_IOQ_P1_A_BE1_M;
+		cr->r_edcca_rpt_b_p1 = EDCCA_IOQ_P1_B_BE1;
+		cr->r_edcca_rpt_b_p1_m = EDCCA_IOQ_P1_B_BE1_M;
+		cr->r_edcca_rpt_sel = EDCCA_RPTREG_SEL_P0_BE1;
+		cr->r_edcca_rpt_sel_m = EDCCA_RPTREG_SEL_P0_BE1_M;
+		cr->r_edcca_rpt_sel_p1 = EDCCA_RPTREG_SEL_P1_BE1;
+		cr->r_edcca_rpt_sel_p1_m = EDCCA_RPTREG_SEL_P1_BE1_M;
+		cr->r_edcca_rptreg_sel_be_dd = TOP_CTRL_P0_R_EDCCA_RPTREG_SEL_BE_DD_BE1;
+		cr->r_edcca_rptreg_sel_be_dd_m = TOP_CTRL_P0_R_EDCCA_RPTREG_SEL_BE_DD_BE1_M;
+		cr->r_ppdu_level = SEG0R_PPDU_LVL_BE1;
+		cr->r_ppdu_level_m = SEG0R_PPDU_LVL_BE1_M;
+		cr->r_ppdu_level_p = SEG0R_PPDU_LVL_P_BE1;
+		cr->r_ppdu_level_p_m = SEG0R_PPDU_LVL_P_BE1_M;
+		cr->collision_r2t_th = SEG0R_COLLISION_R2T_TH_BE1;
+		cr->collision_r2t_th_m = SEG0R_COLLISION_R2T_TH_BE1_M;
+		cr->collision_t2r_th_mcs0 = SEG0R_COLLISION_T2R_TH_MCS0_BE1;
+		cr->collision_t2r_th_mcs0_m = SEG0R_COLLISION_T2R_TH_MCS0_BE1_M;
+		cr->collision_t2r_th_mcs1 = SEG0R_COLLISION_T2R_TH_MCS1_BE1;
+		cr->collision_t2r_th_mcs1_m = SEG0R_COLLISION_T2R_TH_MCS1_BE1_M;
+		cr->collision_t2r_th_mcs2 = SEG0R_COLLISION_T2R_TH_MCS2_BE1;
+		cr->collision_t2r_th_mcs2_m = SEG0R_COLLISION_T2R_TH_MCS2_BE1_M;
+		cr->collision_t2r_th_mcs3 = SEG0R_COLLISION_T2R_TH_MCS3_BE1;
+		cr->collision_t2r_th_mcs3_m = SEG0R_COLLISION_T2R_TH_MCS3_BE1_M;
+		cr->collision_t2r_th_mcs4 = SEG0R_COLLISION_T2R_TH_MCS4_BE1;
+		cr->collision_t2r_th_mcs4_m = SEG0R_COLLISION_T2R_TH_MCS4_BE1_M;
+		cr->collision_t2r_th_mcs5 = SEG0R_COLLISION_T2R_TH_MCS5_BE1;
+		cr->collision_t2r_th_mcs5_m = SEG0R_COLLISION_T2R_TH_MCS5_BE1_M;
+		cr->collision_t2r_th_mcs6 = SEG0R_COLLISION_T2R_TH_MCS6_BE1;
+		cr->collision_t2r_th_mcs6_m = SEG0R_COLLISION_T2R_TH_MCS6_BE1_M;
+		cr->collision_t2r_th_mcs7 = SEG0R_COLLISION_T2R_TH_MCS7_BE1;
+		cr->collision_t2r_th_mcs7_m = SEG0R_COLLISION_T2R_TH_MCS7_BE1_M;
+		cr->collision_t2r_th_mcs8 = SEG0R_COLLISION_T2R_TH_MCS8_BE1;
+		cr->collision_t2r_th_mcs8_m = SEG0R_COLLISION_T2R_TH_MCS8_BE1_M;
+		cr->collision_t2r_th_mcs9 = SEG0R_COLLISION_T2R_TH_MCS9_BE1;
+		cr->collision_t2r_th_mcs9_m = SEG0R_COLLISION_T2R_TH_MCS9_BE1_M;
+		cr->collision_t2r_th_mcs10 = SEG0R_COLLISION_T2R_TH_MCS10_BE1;
+		cr->collision_t2r_th_mcs10_m = SEG0R_COLLISION_T2R_TH_MCS10_BE1_M;
+		cr->collision_t2r_th_mcs11 = SEG0R_COLLISION_T2R_TH_MCS11_BE1;
+		cr->collision_t2r_th_mcs11_m = SEG0R_COLLISION_T2R_TH_MCS11_BE1_M;
+		cr->collision_t2r_th_mcs12 = SEG0R_COLLISION_T2R_TH_MCS12_BE1;
+		cr->collision_t2r_th_mcs12_m = SEG0R_COLLISION_T2R_TH_MCS12_BE1_M;
+		cr->collision_t2r_th_mcs13 = SEG0R_COLLISION_T2R_TH_MCS13_BE1;
+		cr->collision_t2r_th_mcs13_m = SEG0R_COLLISION_T2R_TH_MCS13_BE1_M;
+		cr->collision_t2r_th_cck_1M = SEG0R_COLLISION_T2R_TH_CCK_1M_BE1;
+		cr->collision_t2r_th_cck_1M_m = SEG0R_COLLISION_T2R_TH_CCK_1M_BE1_M;
+		cr->collision_t2r_th_cck_2M = SEG0R_COLLISION_T2R_TH_CCK_2M_BE1;
+		cr->collision_t2r_th_cck_2M_m = SEG0R_COLLISION_T2R_TH_CCK_2M_BE1_M;
+		cr->collision_t2r_th_cck_5p5M = SEG0R_COLLISION_T2R_TH_CCK_5P5M_BE1;
+		cr->collision_t2r_th_cck_5p5M_m = SEG0R_COLLISION_T2R_TH_CCK_5P5M_BE1_M;
+		cr->collision_t2r_th_cck_11M = SEG0R_COLLISION_T2R_TH_CCK_11M_BE1;
+		cr->collision_t2r_th_cck_11M_m = SEG0R_COLLISION_T2R_TH_CCK_11M_BE1_M;
+		cr->collision_map2dbm = SEG0R_COLLISION_MAP2DBM_BE1;
+		cr->collision_map2dbm_m = SEG0R_COLLISION_MAP2DBM_BE1_M;
+		cr->collision_t2r_th_he_dcm_mcs0 = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS0_BE1;
+		cr->collision_t2r_th_he_dcm_mcs0_m = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS0_BE1_M;
+		cr->collision_t2r_th_he_dcm_mcs1 = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS1_BE1;
+		cr->collision_t2r_th_he_dcm_mcs1_m = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS1_BE1_M;
+		cr->collision_t2r_th_he_dcm_mcs3 = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS3_BE1;
+		cr->collision_t2r_th_he_dcm_mcs3_m = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS3_BE1_M;
+		cr->collision_t2r_th_he_dcm_mcs4 = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS4_BE1;
+		cr->collision_t2r_th_he_dcm_mcs4_m = SEG0R_COLLISION_T2R_TH_HE_DCM_MCS4_BE1_M;
+		cr->collision_t2r_th_eht_dcm_mcs14 = SEG0R_COLLISION_T2R_TH_EHT_DCM_MCS14_BE1;
+		cr->collision_t2r_th_eht_dcm_mcs14_m = SEG0R_COLLISION_T2R_TH_EHT_DCM_MCS14_BE1_M;
+		cr->collision_t2r_th_eht_dcm_mcs15 = SEG0R_COLLISION_T2R_TH_EHT_DCM_MCS15_BE1;
+		cr->collision_t2r_th_eht_dcm_mcs15_m = SEG0R_COLLISION_T2R_TH_EHT_DCM_MCS15_BE1_M;
+		cr->collision_t2r_th_legacy_6M = SEG0R_COLLISION_T2R_TH_LEGACY_6M_BE1;
+		cr->collision_t2r_th_legacy_6M_m = SEG0R_COLLISION_T2R_TH_LEGACY_6M_BE1_M;
+		cr->collision_t2r_th_legacy_9M = SEG0R_COLLISION_T2R_TH_LEGACY_9M_BE1;
+		cr->collision_t2r_th_legacy_9M_m = SEG0R_COLLISION_T2R_TH_LEGACY_9M_BE1_M;
+		cr->collision_t2r_th_legacy_12M = SEG0R_COLLISION_T2R_TH_LEGACY_12M_BE1;
+		cr->collision_t2r_th_legacy_12M_m = SEG0R_COLLISION_T2R_TH_LEGACY_12M_BE1_M;
+		cr->collision_t2r_th_legacy_18M = SEG0R_COLLISION_T2R_TH_LEGACY_18M_BE1;
+		cr->collision_t2r_th_legacy_18M_m = SEG0R_COLLISION_T2R_TH_LEGACY_18M_BE1_M;
+		cr->collision_t2r_th_legacy_24M = SEG0R_COLLISION_T2R_TH_LEGACY_24M_BE1;
+		cr->collision_t2r_th_legacy_24M_m = SEG0R_COLLISION_T2R_TH_LEGACY_24M_BE1_M;
+		cr->collision_t2r_th_legacy_36M = SEG0R_COLLISION_T2R_TH_LEGACY_36M_BE1;
+		cr->collision_t2r_th_legacy_36M_m = SEG0R_COLLISION_T2R_TH_LEGACY_36M_BE1_M;
+		cr->collision_t2r_th_legacy_48M = SEG0R_COLLISION_T2R_TH_LEGACY_48M_BE1;
+		cr->collision_t2r_th_legacy_48M_m = SEG0R_COLLISION_T2R_TH_LEGACY_48M_BE1_M;
+		cr->collision_t2r_th_legacy_54M = SEG0R_COLLISION_T2R_TH_LEGACY_54M_BE1;
+		cr->collision_t2r_th_legacy_54M_m = SEG0R_COLLISION_T2R_TH_LEGACY_54M_BE1_M;
+		cr->r_collision_t2r_state = TX_COLLISION_T2R_ST_BE1;
+		cr->r_collision_t2r_state_m = TX_COLLISION_T2R_ST_BE1_M;
+		cr->r_obss_level = SEG0R_OBSS_LVL_BE1; // except p20
+		cr->r_obss_level_m = SEG0R_OBSS_LVL_BE1_M; // except p20
+		cr->r_pwrofst = SEG0R_PWROFST_BE1; // only for s80_0
+		cr->r_pwrofst_m = SEG0R_PWROFST_BE1_M; // only for s80_0
+		cr->r_dc_remove = RXINT_R_DC_REMOVE_BE1;
+		cr->r_dc_remove_m = RXINT_R_DC_REMOVE_BE1_M;
+	break;
 #endif
 
 	default:
