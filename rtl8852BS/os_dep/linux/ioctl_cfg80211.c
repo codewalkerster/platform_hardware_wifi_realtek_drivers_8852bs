@@ -234,7 +234,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter,
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-	struct cfg80211_chan_def chdef;
+	struct cfg80211_chan_def chdef = {0};
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 137)) || defined(CONFIG_MLD_KERNEL_PATCH)
 	u16 punct_bitmap = 0; /*TBD*/
 	#endif
