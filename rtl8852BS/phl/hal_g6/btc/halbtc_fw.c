@@ -970,7 +970,7 @@ void hal_btc_fw_chk_struct(struct btc_t *btc)
 			sz = sizeof(struct fbtc_btdevinfo);
 			break;
 		case BTC_RPT_TYPE_TEST:
-			sz = 0;
+			sz = sizeof(struct fbtc_testinfo);;
 			break;
 		}
 

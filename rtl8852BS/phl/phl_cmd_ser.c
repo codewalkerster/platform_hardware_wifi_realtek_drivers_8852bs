@@ -165,7 +165,7 @@ void _ser_dump_stsl2(struct cmd_ser *cser)
 	}
 }
 
-void _ser_reset_status(struct cmd_ser *cser)
+void _ser_reset_status(struct cmd_ser *cser, bool ser_mdl_start)
 {
 	void *drv = phl_to_drvpriv(cser->phl_info);
 
@@ -179,7 +179,10 @@ void _ser_reset_status(struct cmd_ser *cser)
 		              &cser->poll_timer,
 		              CMD_SER_USB_POLLING_INTERVAL_IDL);
 	} else if (CMD_SER_SRC_INT_NOTIFY == cser->evtsrc) {
-		_ser_int_ntfy_ctrl(cser->phl_info, RTW_PHL_EN_HCI_INT);
+		if (ser_mdl_start == true)
+			_ser_int_ntfy_ctrl(cser->phl_info, RTW_PHL_SER_HANDSHAKE_MODE);
+		else
+			_ser_int_ntfy_ctrl(cser->phl_info, RTW_PHL_EN_HCI_INT);
 	}
 }
 
@@ -415,7 +418,7 @@ static void _ser_m1_pause_trx(struct cmd_ser *cser)
 	return;
 err:
 	_ser_l2_notify(cser);
-	_ser_reset_status(cser);
+	_ser_reset_status(cser, false);
 
 	return;
 }
@@ -483,7 +486,7 @@ static void _ser_m3_reset_hw_trx(struct cmd_ser *cser)
 	return;
 err:
 	_ser_l2_notify(cser);
-	_ser_reset_status(cser);
+	_ser_reset_status(cser, false);
 
 	return;
 }
@@ -692,7 +695,7 @@ static void _ser_msg_hdl_m5(struct cmd_ser *cser)
 
 	rtw_hal_ser_int_cfg(phl_info->hal, phl_info->phl_com, RTW_PHL_SER_M5_CFG);
 
-	_ser_reset_status(cser);
+	_ser_reset_status(cser, false);
 
 	phl_disp_eng_clr_pending_msg(cser->phl_info, HW_BAND_0);
 	phl_disp_eng_clr_pending_msg(cser->phl_info, HW_BAND_1);
@@ -712,7 +715,7 @@ static void _ser_msg_hdl_m9(struct cmd_ser *cser)
 	_ser_m9_pause_trx(cser);
 
 	_ser_l2_notify(cser);
-	_ser_reset_status(cser);
+	_ser_reset_status(cser, false);
 }
 
 static void _ser_msg_hdl_l2_reset_done(struct cmd_ser *cser)
@@ -861,7 +864,7 @@ _phl_ser_mdl_start(void *dispr, void *priv)
 		rtw_hal_ser_set_error_status(phl_info->hal, RTW_PHL_SER_L0_CFG_DIS_NOTIFY);
 	}
 
-	_ser_reset_status(cser);
+	_ser_reset_status(cser, true);
 
 	return MDL_RET_SUCCESS;
 }

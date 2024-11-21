@@ -435,7 +435,7 @@ void _8852b_rfe_type(struct btc_t *btc)
 		cx->other.type = BTC_EXTSOC_FUNC_THREAD;
 		cx->other.hw_coex = BTC_EXTSOC_INTF_SWIO;
 		/* input: ZB_Act to WL, GPIO5 as input + interrupt src*/
-		cx->other.ext_swin_cfg = BIT(5) | (BIT(5) << 16);
+		cx->other.ext_swin_cfg = BIT(6) | (BIT(6) << 16);
 		/* output: WL_Act to ZB */
 		cx->other.ext_swout_cfg = BIT(12);
 		break;

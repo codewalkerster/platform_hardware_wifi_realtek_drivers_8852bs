@@ -2647,6 +2647,7 @@ static void _ntfy_timer(struct btc_t *btc, u16 tmr_id)
 	struct btc_wl_info *wl = &cx->wl;
 	struct btc_bt_info *bt = &cx->bt;
 	struct btc_bt_a2dp_desc *a2dp = &cx->bt.link_info.a2dp_desc;
+	struct btc_wl_smap *wl_smap = &wl->status.map;
 	bool is_sta_change = false;
 	u32 rpt_tick = BTC_RPT_PERIOD/BTC_PERIODIC_TIME;
 
@@ -2660,7 +2661,8 @@ static void _ntfy_timer(struct btc_t *btc, u16 tmr_id)
 		/* update per 100ms * 20 */
 		if (dm->cnt_notify[BTC_NTFY_TIMER] % rpt_tick == 0) {
 			_get_wl_nhm_dbm(btc);
-			_get_wl_cn_report(btc);
+			if (wl_smap->rf_off == 0 && wl_smap->lps == BTC_LPS_RF_ON)
+				_get_wl_cn_report(btc);
 			_get_wl_evm_report(btc);
 
 			_query_bt_dev(btc);

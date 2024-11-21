@@ -1213,6 +1213,16 @@ void core_handler_phl_msg(void *drv_priv, struct phl_msg *msg)
 		rtw_msg_hub_power_mgnt_evt_hdlr(dvobj, evt_id, msg->inbuf, msg->inlen, &pwrpriv->rfkill_state);
 	}
 		break;
+
+case PHL_MDL_GENERAL:
+#ifdef CONFIG_BTC
+#ifdef CONFIG_BTC_TRXSS_CHG
+		if ((evt_id == MSG_EVT_ANN_RX1SS) || (evt_id == MSG_EVT_ANN_RX_MAXSS))
+			rtw_btc_trxss_chg_hdl(dvobj, msg, evt_id);
+#endif
+#endif
+		break;
+
 	default:
 		RTW_ERR("%s mdl_id :%d not support\n", __func__, mdl_id);
 		break;
@@ -1222,7 +1232,7 @@ void core_handler_phl_msg(void *drv_priv, struct phl_msg *msg)
 u8 rtw_core_register_phl_msg(struct dvobj_priv *dvobj)
 {
 	struct phl_msg_receiver ctx = {0};
-	u8 imr[] = {PHL_MDL_RX, PHL_MDL_SER, PHL_MDL_WOW, PHL_MDL_MRC, PHL_MDL_POWER_MGNT};
+	u8 imr[] = {PHL_MDL_RX, PHL_MDL_SER, PHL_MDL_WOW, PHL_MDL_MRC, PHL_MDL_POWER_MGNT, PHL_MDL_GENERAL};
 	enum rtw_phl_status psts = RTW_PHL_STATUS_FAILURE;
 
 	ctx.incoming_evt_notify = core_handler_phl_msg;
@@ -3193,6 +3203,7 @@ void rtw_dump_env_rpt(struct _ADAPTER *a, void *sel)
 	struct _ADAPTER_LINK *alink = GET_PRIMARY_LINK(a);
 
 	rtw_phl_get_env_rpt(phl, &rpt, alink->wrlink->hw_band);
+	
 	RTW_PRINT_SEL(sel, "tx_ratio:%d (%%)\n", rpt.nhm_tx_ratio);
 	RTW_PRINT_SEL(sel, "clm_ratio:%d (%%)\n", rpt.nhm_cca_ratio);
 	RTW_PRINT_SEL(sel, "nhm_ratio:%d (%%)\n", rpt.nhm_ratio);

@@ -3031,6 +3031,7 @@ u8 rtw_phl_remain_on_ch_cmd(_adapter *padapter,
 	struct rtw_phl_scan_param *phl_param = NULL;
 	struct scan_priv *scan_priv = NULL;
 	u16 remain_ch;
+	enum band_type remain_band;
 	u8 chan_num;
 	u8 res = _FAIL;
 	struct rtw_chan_def u_chdef = {0};
@@ -3039,6 +3040,7 @@ u8 rtw_phl_remain_on_ch_cmd(_adapter *padapter,
 
 	/* prepare remain channel - check channel */
 	remain_ch = (u16)rtw_freq2ch(ch->center_freq);
+	remain_band = nl80211_band_to_rtw_band(ch->band);
 	if (roch_stay_in_cur_chan(padapter) == _TRUE) {
 		if (rtw_phl_mr_get_chandef(dvobj->phl, padapter->phl_role,
 					padapter_link->wrlink, &u_chdef)
@@ -3047,8 +3049,9 @@ u8 rtw_phl_remain_on_ch_cmd(_adapter *padapter,
 			rtw_warn_on(1);
 		}
 		remain_ch = u_chdef.chan;
-		RTW_INFO(FUNC_ADPT_FMT" stay in union ch:%d\n",
-			FUNC_ADPT_ARG(padapter), remain_ch);
+		remain_band = u_chdef.band;
+		RTW_INFO(FUNC_ADPT_FMT" stay in union ch:%d, band:%d\n",
+			FUNC_ADPT_ARG(padapter), remain_ch, remain_band);
 	}
 	chan_num = 1;
 
@@ -3071,7 +3074,7 @@ u8 rtw_phl_remain_on_ch_cmd(_adapter *padapter,
 	/* fill phl param - chan */
 	phl_param->ch->channel = remain_ch;
 	phl_param->ch->bw = CHANNEL_WIDTH_20;
-	phl_param->ch->band = nl80211_band_to_rtw_band(ch->band);
+	phl_param->ch->band = remain_band;
 	phl_param->ch->duration = duration;
 	phl_param->ch->scan_mode = P2P_LISTEN_MODE;
 	phl_param->ch_num = chan_num;

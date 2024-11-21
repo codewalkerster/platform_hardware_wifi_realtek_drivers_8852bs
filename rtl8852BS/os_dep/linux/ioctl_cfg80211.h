@@ -475,6 +475,44 @@ void rtw_cfg80211_deinit_rfkill(struct wiphy *wiphy);
 #define rtw_cfg80211_notify_new_peer_candidate(wdev, addr, ie, ie_len, sig_dbm, gfp) cfg80211_notify_new_peer_candidate(wdev_to_ndev(wdev), addr, ie, ie_len, gfp)
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41) && defined (CONFIG_AMLOGIC_KERNEL_VERSION))
+#include <linux/upstream_version.h>
+#endif
+
+#if defined(IEEE80211_MLD_MAX_NUM_LINKS)
+#define CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT 1
+#endif
+
+static inline void _cfg80211_ch_switch_notify(struct net_device *dev,
+	struct cfg80211_chan_def *chandef, unsigned int link_id)
+{
+#if ((defined (CONFIG_AMLOGIC_KERNEL_VERSION) && defined (AML_KERNEL_VERSION)) && (\
+	(CONFIG_AMLOGIC_KERNEL_VERSION == 13515 && AML_KERNEL_VERSION >= 15)\
+	|| (CONFIG_AMLOGIC_KERNEL_VERSION == 14515 && AML_KERNEL_VERSION >= 12) ) )\
+	|| (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+	return cfg80211_ch_switch_notify(dev, chandef, link_id, 0);
+#elif defined (CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
+	return cfg80211_ch_switch_notify(dev, chandef, link_id);
+#else
+	return cfg80211_ch_switch_notify(dev, chandef);
+#endif
+}
+
+static inline void _cfg80211_ch_switch_started_notify(struct net_device *dev,
+	struct cfg80211_chan_def *chandef, unsigned int link_id, u8 count, bool quiet)
+{
+#if ( (defined (CONFIG_AMLOGIC_KERNEL_VERSION) && defined (AML_KERNEL_VERSION)) && (\
+	(CONFIG_AMLOGIC_KERNEL_VERSION == 13515 && AML_KERNEL_VERSION >= 15)\
+	|| (CONFIG_AMLOGIC_KERNEL_VERSION == 14515 && AML_KERNEL_VERSION >= 12) ) )\
+	|| (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+	return cfg80211_ch_switch_started_notify(dev, chandef, link_id, count, quiet, 0);
+#elif defined (CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
+	return cfg80211_ch_switch_started_notify(dev, chandef, link_id, count, quiet);
+#else
+	return cfg80211_ch_switch_started_notify(dev, chandef, count);
+#endif
+}
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter,
 					struct _ADAPTER_LINK *alink,

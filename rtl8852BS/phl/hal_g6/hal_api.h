@@ -1503,4 +1503,7 @@ rtw_hal_update_tas_def_setting(void *hal, u32 tas_config);
 
 enum rtw_hal_status
 rtw_hal_tas_en(void *hal, u8 en);
+
+void rtw_hal_get_mac_sel_tx_status(void *hal, enum phl_band_idx bidx, void *out_tx_cnt);
+
 #endif /*_HAL_API_H_*/

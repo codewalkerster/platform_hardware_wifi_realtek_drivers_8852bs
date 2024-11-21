@@ -353,12 +353,15 @@ static enum rtw_phl_status _ps_ntfy_before_lps_proto_cfg(
 }
 
 static void
-_ps_ntfy_after_lps_proto_cfg(struct phl_info_t *phl_info, u8 lps_en, u8 cfg_ok)
+_ps_ntfy_after_lps_proto_cfg(struct phl_info_t *phl_info,
+                   u8 lps_en, u8 hw_band, u8 cfg_ok)
 {
 	PHL_TRACE(COMP_PHL_PS, _PHL_INFO_, "[PS], %s(): \n", __func__);
 
 	if (lps_en) { /* enter lps */
-		if (!cfg_ok) { /* fail */
+		if (cfg_ok) { /* success */
+			rtw_hal_notification(phl_info->hal, MSG_EVT_PS_LPS_ENTER, hw_band);
+		} else { /* fail */
 			#ifdef CONFIG_BTCOEX
 			rtw_hal_btc_radio_state_ntfy(phl_info->hal, BTC_RFCTRL_WL_ON);
 			#endif
@@ -368,6 +371,7 @@ _ps_ntfy_after_lps_proto_cfg(struct phl_info_t *phl_info, u8 lps_en, u8 cfg_ok)
 			#ifdef CONFIG_BTCOEX
 			rtw_hal_btc_radio_state_ntfy(phl_info->hal, BTC_RFCTRL_WL_ON);
 			#endif
+			rtw_hal_notification(phl_info->hal, MSG_EVT_PS_LPS_LEAVE, hw_band);
 		}
 	}
 }
@@ -496,7 +500,8 @@ phl_ps_lps_cfg(struct phl_info_t *phl_info, struct ps_cfg *cfg, u8 en)
 		status = RTW_PHL_STATUS_FAILURE;
 	}
 exit:
-	_ps_ntfy_after_lps_proto_cfg(phl_info, en, (status == RTW_PHL_STATUS_SUCCESS ? true : false));
+	_ps_ntfy_after_lps_proto_cfg(phl_info, en, sta->rlink->hw_band,
+	                            (status == RTW_PHL_STATUS_SUCCESS ? true : false));
 
 	return status;
 }
@@ -678,21 +683,6 @@ enum rtw_phl_status phl_ps_ips_leave(struct phl_info_t *phl_info, struct ps_cfg 
 	return status;
 }
 
-static void _ps_ntfy(struct phl_info_t *phl_info, struct ps_cfg *cfg, enum phl_msg_evt_id event)
-{
-	struct rtw_wifi_role_link_t *rlink = NULL;
-	struct rtw_phl_stainfo_t *sta = NULL;
-
-	sta = rtw_phl_get_stainfo_by_macid(phl_info, cfg->macid);
-	if (sta != NULL)
-		rlink = sta->rlink;
-	else
-		PHL_TRACE(COMP_PHL_PS, _PHL_WARNING_, "[PS], %s(): cannot get sta!\n", __func__);
-
-	if (rlink != NULL)
-		rtw_hal_notification(phl_info->hal, event, rlink->hw_band);
-}
-
 enum rtw_phl_status
 phl_ps_enter_ps(struct phl_info_t *phl_info, struct ps_cfg *cfg)
 {
@@ -704,8 +694,6 @@ phl_ps_enter_ps(struct phl_info_t *phl_info, struct ps_cfg *cfg)
 
 	if (cfg->ps_mode == PS_MODE_LPS) {
 		status = phl_ps_lps_enter(phl_info, cfg);
-		if (status == RTW_PHL_STATUS_SUCCESS)
-			_ps_ntfy(phl_info, cfg, MSG_EVT_PS_LPS_ENTER);
 	} else if (cfg->ps_mode == PS_MODE_IPS) {
 		status = phl_ps_ips_enter(phl_info, cfg);
 	}
@@ -724,8 +712,6 @@ phl_ps_leave_ps(struct phl_info_t *phl_info, struct ps_cfg *cfg)
 
 	if (cfg->ps_mode == PS_MODE_LPS) {
 		status = phl_ps_lps_leave(phl_info, cfg);
-		if (status == RTW_PHL_STATUS_SUCCESS)
-			_ps_ntfy(phl_info, cfg, MSG_EVT_PS_LPS_LEAVE);
 	} else if (cfg->ps_mode == PS_MODE_IPS) {
 		status = phl_ps_ips_leave(phl_info, cfg);
 	}

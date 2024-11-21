@@ -7761,6 +7761,38 @@ rtw_hal_mac_get_tx_cnt(struct hal_info_t *hal, enum phl_band_idx bidx, u8 sel)
 }
 
 enum rtw_hal_status
+rtw_hal_mac_get_sel_tx_cnt(struct hal_info_t *hal, enum phl_band_idx bidx, void *out_tx_cnt)
+{
+	struct mac_ax_adapter *mac = hal_to_mac(hal);
+	struct mac_ax_ops *ops = mac->ops;
+	struct mac_ax_tx_cnt *tx_cnt = out_tx_cnt;
+	u32 ret = MACSUCCESS;
+
+	tx_cnt->band = bidx;
+	tx_cnt->sel = MAC_AX_TX_ALLTYPE;
+	ret = ops->get_hw_value(mac, MAC_AX_HW_GET_TX_CNT, (void *)tx_cnt);
+	if (ret != MACSUCCESS) {
+		PHL_ERR("%s failed - ecode(%d)\n", __func__, ret);
+		return RTW_HAL_STATUS_FAILURE;
+	}
+
+	PHL_INFO("[MAC] TX CNT - band_%d\n", tx_cnt->band);
+	PHL_INFO("[MAC] TX CNT - LCCK : %d\n", tx_cnt->txcnt[MAC_AX_TX_LCCK]);
+	PHL_INFO("[MAC] TX CNT - SCCK : %d\n", tx_cnt->txcnt[MAC_AX_TX_SCCK]);
+	PHL_INFO("[MAC] TX CNT - OFDM : %d\n", tx_cnt->txcnt[MAC_AX_TX_OFDM]);
+	PHL_INFO("[MAC] TX CNT - HT : %d\n", tx_cnt->txcnt[MAC_AX_TX_HT]);
+	PHL_INFO("[MAC] TX CNT - HTGF : %d\n", tx_cnt->txcnt[MAC_AX_TX_HTGF]);
+	PHL_INFO("[MAC] TX CNT - VHTSU : %d\n", tx_cnt->txcnt[MAC_AX_TX_VHTSU]);
+	PHL_INFO("[MAC] TX CNT - VHTMU : %d\n", tx_cnt->txcnt[MAC_AX_TX_VHTMU]);
+	PHL_INFO("[MAC] TX CNT - HESU : %d\n", tx_cnt->txcnt[MAC_AX_TX_HESU]);
+	PHL_INFO("[MAC] TX CNT - HEERSU : %d\n", tx_cnt->txcnt[MAC_AX_TX_HEERSU]);
+	PHL_INFO("[MAC] TX CNT - HEMU : %d\n", tx_cnt->txcnt[MAC_AX_TX_HEMU]);
+	PHL_INFO("[MAC] TX CNT - HETB : %d\n", tx_cnt->txcnt[MAC_AX_TX_HETB]);
+
+	return RTW_HAL_STATUS_SUCCESS;
+}
+
+enum rtw_hal_status
 rtw_hal_mac_get_rx_cnt(struct hal_info_t *hal_info, u8 cur_phy_idx, u8 type_idx, u32 *ret_value)
 {
 #ifdef CONFIG_HAL_MAC_DBG

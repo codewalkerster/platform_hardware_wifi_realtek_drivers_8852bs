@@ -3436,7 +3436,7 @@ static void rtw_acs_chan_info_dump(struct seq_file *m, _adapter *a)
 	struct rtw_chset *chset = adapter_to_chset(adapter);
 	int i;
 
-	RTW_PRINT_SEL(m, "%5s  %3s  %5s  %4s(%%)  %4s(%%)\n",
+	RTW_PRINT_SEL(m, "%5s  %3s  %5s  %4s(%%)  %4s(%%)  %4s(%%)\n",
 						"Index", "CH", "Band", "NHM", "CLM", "tx");
 
 	for (i = 0; i < MAX_CHANNEL_NUM && chset->chs[i].ChannelNum != 0; i++){

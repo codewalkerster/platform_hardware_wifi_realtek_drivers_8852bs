@@ -450,6 +450,14 @@ void rtw_hal_dump_tx_status(void *hal, enum phl_band_idx bidx)
 }
 #endif
 
+void rtw_hal_get_mac_sel_tx_status(void *hal, enum phl_band_idx bidx, void *out_tx_cnt)
+{
+	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
+
+	rtw_hal_mac_get_sel_tx_cnt(hal_info, bidx, out_tx_cnt);
+
+}
+
 enum rtw_hal_status
 rtw_hal_tbtt_tuning(void *hal, enum phl_band_idx band,
 			u8 port, u32 tbtt)

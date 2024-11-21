@@ -544,8 +544,10 @@ u8 init_obj_thread(struct test_mgnt_info *test_mgnt,
 
 	switch(lvl){
 	case TEST_LVL_LOW:
-	case TEST_LVL_NORMAL:
 		obj->handler.type = RTW_PHL_HANDLER_PRIO_LOW;
+		break;
+	case TEST_LVL_NORMAL:
+		obj->handler.type = RTW_PHL_HANDLER_PRIO_NORMAL;
 		break;
 	case TEST_LVL_HIGH:
 		obj->handler.type = RTW_PHL_HANDLER_PRIO_HIGH;

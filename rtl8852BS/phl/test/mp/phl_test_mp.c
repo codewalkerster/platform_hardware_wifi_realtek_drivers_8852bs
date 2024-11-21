@@ -400,7 +400,7 @@ void phl_test_mp_init(void *mp)
 	status = rtw_phl_test_add_new_test_obj(mp_ctx->phl_com,
 	                              "mp_test",
 	                              mp_ctx,
-	                              TEST_LVL_LOW,
+	                              TEST_LVL_NORMAL,
 	                              pctrl,
 	                              -1,
 	                              TEST_SUB_MODULE_MP,

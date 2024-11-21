@@ -54,19 +54,43 @@ u32 * _halrf_power_by_rate_table_addr_8852b(struct rf_info *rf)
 
 u32 _halrf_power_limit_table_size_8852b(struct rf_info *rf, u8 ru, u8 band)
 {
+	u8 rfe_type = rf->phl_com->dev_cap.rfe_type;
+
 	if (ru == PW_LMT_TBL_NONE_RU) {
-		return sizeof(array_mp_8852b_txpwr_lmt);
+		if (rfe_type == 11)
+			return sizeof(array_mp_8852b_txpwr_lmt_type11);
+		else if (rfe_type == 12)
+			return sizeof(array_mp_8852b_txpwr_lmt_type12);
+		else
+			return sizeof(array_mp_8852b_txpwr_lmt);
 	} else {
-		return sizeof(array_mp_8852b_txpwr_lmt_ru);
+		if (rfe_type == 11)
+			return sizeof(array_mp_8852b_txpwr_lmt_ru_type11);
+		else if (rfe_type == 12)
+			return sizeof(array_mp_8852b_txpwr_lmt_ru_type12);
+		else
+			return sizeof(array_mp_8852b_txpwr_lmt_ru);
 	}
 }
 
 void * _halrf_power_limit_table_addr_8852b(struct rf_info *rf, u8 ru, u8 band)
 {
+	u8 rfe_type = rf->phl_com->dev_cap.rfe_type;
+
 	if (ru == PW_LMT_TBL_NONE_RU) {
-		return (void *) array_mp_8852b_txpwr_lmt;
+		if (rfe_type == 11)
+			return (void *) array_mp_8852b_txpwr_lmt_type11;
+		else if (rfe_type == 12)
+			return (void *) array_mp_8852b_txpwr_lmt_type12;
+		else
+			return (void *) array_mp_8852b_txpwr_lmt;
 	} else {
-		return (void *) array_mp_8852b_txpwr_lmt_ru;
+		if (rfe_type == 11)
+			return (void *) array_mp_8852b_txpwr_lmt_ru_type11;
+		else if (rfe_type == 12)
+			return (void *) array_mp_8852b_txpwr_lmt_ru_type12;
+		else
+			return (void *) array_mp_8852b_txpwr_lmt_ru;
 	}
 }
 

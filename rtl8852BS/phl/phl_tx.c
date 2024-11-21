@@ -3457,3 +3457,12 @@ bool
 rtw_phl_check_sta_has_busy_wp(struct rtw_phl_stainfo_t *sta) {
 	return rtw_hal_check_sta_has_busy_wp(sta);
 }
+
+void rtw_phl_get_mac_sel_tx_status(void *phl, enum phl_band_idx bidx, void *out_tx_cnt)
+{
+	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+
+	rtw_hal_get_mac_sel_tx_status(phl_info->hal, bidx, out_tx_cnt);
+
+}
+

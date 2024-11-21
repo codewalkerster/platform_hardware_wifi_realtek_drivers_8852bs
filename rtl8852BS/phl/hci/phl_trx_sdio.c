@@ -1358,6 +1358,8 @@ static enum rtw_phl_status phl_trx_init_sdio(struct phl_info_t *phl_info)
 
 		pstatus = phl_register_trx_hdlr_sdio(phl_info);
 
+		phl_schedule_handler(phl_info->phl_com, &phl_info->phl_tx_handler);
+
 #ifdef SDIO_TX_THREAD
 		_os_sema_init(drv, &hci->tx_thrd_sema, 0);
 		if (RTW_PHL_STATUS_SUCCESS != _os_thread_init(drv, &hci->tx_thrd, phl_tx_sdio_thrd_hdl,

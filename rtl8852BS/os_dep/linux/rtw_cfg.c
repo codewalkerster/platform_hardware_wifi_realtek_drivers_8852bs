@@ -445,6 +445,12 @@ module_param(rtw_btc_ant_iso_db, int, 0644);
 MODULE_PARM_DESC(rtw_btc_ant_iso_db, "BTC antenna isolation value in unit dB");
 #endif
 
+#ifdef CONFIG_BTC_TRXSS_CHG
+int rtw_btc_trxss_chg = 0;
+module_param(rtw_btc_trxss_chg, int, 0644);
+MODULE_PARM_DESC(rtw_btc_trxss_chg, "Tx/Rx SS change triggered by BTC");
+#endif
+
 #endif /* CONFIG_BTC */
 
 int rtw_AcceptAddbaReq = _TRUE;/* 0:Reject AP's Add BA req, 1:Accept AP's Add BA req. */
@@ -1573,6 +1579,10 @@ void rtw_core_update_default_setting (struct dvobj_priv *dvobj)
 #endif
 #ifdef CONFIG_BTC_EXT_CFG_ANT_ISO_DB
 	phl_com->dev_sw_cap.btc_ant_iso_db = rtw_btc_ant_iso_db;
+#endif
+#ifdef CONFIG_BTC_TRXSS_CHG
+	if (rtw_btc_trxss_chg)
+		GET_DEV_SW_BTC_CAP(phl_com).btc_deg_wifi_cap |= BTC_DRG_WIFI_CAP_TRX1SS;
 #endif
 #else
 	phl_com->dev_sw_cap.btc_mode = BTC_MODE_WL;

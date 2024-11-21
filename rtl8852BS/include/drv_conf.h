@@ -811,6 +811,10 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 	#endif
 #endif
 
+#ifdef CONFIG_BTC
+#define CONFIG_BTC_TRXSS_CHG
+#endif
+
 /*
  * Work around Config
  */

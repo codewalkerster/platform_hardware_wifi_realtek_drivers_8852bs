@@ -673,7 +673,11 @@ enum rtw_hal_status
 rtw_hal_mac_get_tx_cnt(struct hal_info_t *hal, enum phl_band_idx bidx, u8 sel);
 
 enum rtw_hal_status
+rtw_hal_mac_get_sel_tx_cnt(struct hal_info_t *hal, enum phl_band_idx bidx, void *out_tx_cnt);
+
+enum rtw_hal_status
 rtw_hal_mac_get_rx_cnt(struct hal_info_t *hal_info, u8 cur_phy_idx, u8 type_idx, u32 *ret_value);
+
 enum rtw_hal_status
 rtw_hal_mac_get_rx_cnt_by_idx(struct hal_info_t *hal_info, u8 cur_phy_idx,
 			      u8 cnt_idx, u16 *ret_value);

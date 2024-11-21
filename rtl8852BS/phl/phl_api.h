@@ -1368,5 +1368,7 @@ void
 rtw_phl_get_antenna_info_acs(void *phl, struct rtw_phl_smart_ant_info_t *antenna_info);
 #endif
 
+void rtw_phl_get_mac_sel_tx_status(void *phl, enum phl_band_idx bidx, void *out_tx_cnt);
+
 #endif /*_PHL_API_H_*/
 
