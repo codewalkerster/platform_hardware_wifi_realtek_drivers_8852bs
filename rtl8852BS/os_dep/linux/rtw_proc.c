@@ -5503,6 +5503,13 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #ifdef CONFIG_WOW_PERIODIC_WAKE
 	RTW_PROC_HDL_SSEQ("wow_pw_info", proc_get_wow_pw_info, proc_set_wow_pw_info),
 #endif
+#ifdef CONFIG_MDNS_OFFLOAD
+	RTW_PROC_HDL_SSEQ("wow_mdns_resp", proc_get_wow_mdns_resp, proc_set_wow_mdns_resp),
+	RTW_PROC_HDL_SSEQ("wow_mdns_match_criteria", proc_get_wow_mdns_match_criteria, proc_set_wow_mdns_match_criteria),
+	RTW_PROC_HDL_SSEQ("wow_mdns_passthru_list", proc_get_wow_mdns_passthru_list, proc_set_wow_mdns_passthru_list),
+	RTW_PROC_HDL_SSEQ("wow_mdns_offload_state", proc_get_wow_mdns_offload_state, proc_set_wow_mdns_offload_state),
+	RTW_PROC_HDL_SSEQ("wow_mdns_passthru_behavior", proc_get_wow_mdns_passthru_behavior, proc_set_wow_mdns_passthru_behavior),
+#endif
 #endif
 
 #ifdef CONFIG_P2P_WOWLAN

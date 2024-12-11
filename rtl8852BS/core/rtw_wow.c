@@ -119,6 +119,10 @@ void rtw_init_wow(_adapter *padapter)
 	_rtw_mutex_init(&pwrctrlpriv->wowlan_pattern_cam_mutex);
 
 	pwrctrlpriv->wowlan_aoac_rpt_loc = 0;
+#ifdef CONFIG_MDNS_OFFLOAD
+	_rtw_memset(&wowpriv->mdns_ofld_info, 0,
+			sizeof(struct rtw_mdns_ofld_info));
+#endif
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_WOW_PERIODIC_WAKE
@@ -248,6 +252,110 @@ void rtw_wow_pattern_clean(_adapter *adapter, enum pattern_type clean_type)
 		}
 	}
 }
+
+#ifdef CONFIG_GOOGLE_CAST_WAKEUP
+#define rtw_user_wow_patten_elem(len, array, args...)	\
+	{.conts_len = len,  .pconts = (u8[len]){array, ##args}}
+
+void rtw_set_google_cast_mdns_wow_pattern(_adapter *adapter)
+{
+	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
+	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct rtw_wowcam_upd_info wowcam_info = {0};
+	u8 index = 0;
+	u8 eth_dest_mac[ETH_ALEN] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0xfb};
+	u8 eth_protocol[2] = {0x08, 0x00};
+	u8 ip_ver = 0x45;
+	u8 ip_protocol = 0x11;
+	u8 dest_port[2] = {0x14, 0xe9};
+	u8 *ptr;
+	struct pattern_cont_t {
+		u8 conts_len;
+		u8 *pconts;
+	};
+	struct pattern_cont_t conts[] = {
+		rtw_user_wow_patten_elem(0x51, /*_%9E5E7C8F47989526C9BCD95D24084F6F0B27C5ED._sub._googlecast._tcp.local*/
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2A, 0x5F, 0x25, 0x39, 0x45, 0x35,
+				0x45, 0x37, 0x43, 0x38, 0x46, 0x34, 0x37, 0x39, 0x38, 0x39, 0x35, 0x32, 0x36, 0x43, 0x39, 0x42,
+				0x43, 0x44, 0x39, 0x35, 0x44, 0x32, 0x34, 0x30, 0x38, 0x34, 0x46, 0x36, 0x46, 0x30, 0x42, 0x32,
+				0x37, 0x43, 0x35, 0x45, 0x44, 0x04, 0x5F, 0x73, 0x75, 0x62, 0x0B, 0x5F, 0x67, 0x6F, 0x6F, 0x67,
+				0x6C, 0x65, 0x63, 0x61, 0x73, 0x74, 0x04, 0x5F, 0x74, 0x63, 0x70, 0x05, 0x6C, 0x6F, 0x63, 0x61,
+				0x6C),
+		rtw_user_wow_patten_elem(0x21, /*_googlecast._tcp.local*/
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B, 0x5F, 0x67, 0x6F, 0x6F, 0x67,
+				0x6C, 0x65, 0x63, 0x61, 0x73, 0x74, 0x04, 0x5F, 0x74, 0x63, 0x70, 0x05, 0x6C, 0x6F, 0x63, 0x61,
+				0x6C),
+		rtw_user_wow_patten_elem(0x30, /*_233637DE._sub._googlecast._tcp.local*/
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x5F, 0x32, 0x33, 0x33, 0x36,
+				0x33, 0x37, 0x44, 0x45, 0x04, 0x5F, 0x73, 0x75, 0x62, 0x0B, 0x5F, 0x67, 0x6F, 0x6F, 0x67, 0x6C,
+				0x65, 0x63, 0x61, 0x73, 0x74, 0x04, 0x5F, 0x74, 0x63, 0x70, 0x05, 0x6C, 0x6F, 0x63, 0x61, 0x6C),
+	};
+	struct pattern_cont_t masks[] = {
+		rtw_user_wow_patten_elem(MAX_WKFM_SIZE,
+				0x3f, 0x70, 0x80, 0x00, 0x30, 0x30, 0xc0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x1f),
+		rtw_user_wow_patten_elem(10,
+				0x3f, 0x70, 0x80, 0x00, 0x30, 0x30, 0xc0, 0xff, 0xff, 0x1f),
+		rtw_user_wow_patten_elem(12,
+				0x3f, 0x70, 0x80, 0x00, 0x30, 0x30, 0xc0, 0xff, 0xff, 0xff, 0xff, 0x0f),
+	};
+
+	u8 *target = NULL;
+
+	for (index = 0 ; index < GOOGLE_CAST_PATTERN_NUM ; index++){
+		_rtw_memset((void *)&wowcam_info, 0, sizeof(wowcam_info));
+
+		target = wowcam_info.ptrn;
+
+		_rtw_memcpy(target, eth_dest_mac, ETH_ALEN);
+		target += ETH_TYPE_OFFSET;
+		wowcam_info.ptrn_len += ETH_TYPE_OFFSET;
+
+		_rtw_memcpy(target, eth_protocol, 2);
+		target += 2;
+		wowcam_info.ptrn_len += 2;
+
+		*target = ip_ver;
+		target += 1;
+		wowcam_info.ptrn_len += 1;
+
+		/*padding*/
+		target += 8;
+		wowcam_info.ptrn_len += 8;
+
+		*target = ip_protocol;
+		target += 1;
+		wowcam_info.ptrn_len += 1;
+
+		/*padding*/
+		target += 2;
+		wowcam_info.ptrn_len += 2;
+
+		/*skip src & des ip*/
+		target += (RTW_IP_ADDR_LEN * 2);
+		wowcam_info.ptrn_len += (RTW_IP_ADDR_LEN * 2);
+
+		/*skip src port*/
+		target += 2;
+		wowcam_info.ptrn_len += 2;
+
+		_rtw_memcpy(target, dest_port, 2);
+		target += 2;
+		wowcam_info.ptrn_len += 2;
+
+		/*padding*/
+		target += 6;
+		wowcam_info.ptrn_len += 6;
+
+		_rtw_memcpy(target, conts[index].pconts, conts[index].conts_len);
+		wowcam_info.ptrn_len += conts[index].conts_len;
+
+		_rtw_memcpy(wowcam_info.mask, masks[index].pconts, masks[index].conts_len);
+
+		rtw_wow_pattern_set(adapter, &wowcam_info, RTW_DEFAULT_PATTERN);
+	}
+}
+#endif /*CONFIG_GOOGLE_CAST_WAKEUP*/
 
 void rtw_set_default_pattern(_adapter *adapter)
 {
@@ -504,6 +612,133 @@ void rtw_core_wow_handle_wake_up_rsn(void *drv_priv, u8 rsn)
 
 	wowpriv->wow_wake_reason = rsn;
 }
+
+#ifdef CONFIG_MDNS_OFFLOAD
+static struct rtw_mdns_resp_entry *
+_rtw_get_mdns_resp_entry(_adapter *padapter, u8 index)
+{
+	struct wow_priv *wowpriv = adapter_to_wowlan(padapter);
+	struct rtw_mdns_ofld_info *ofld_info = &wowpriv->mdns_ofld_info;
+	struct rtw_mdns_resp_entry *resp_entry = NULL;
+
+	if (index < MAX_MDNS_RESP_NUM)
+		resp_entry = &ofld_info->resp_entry[index];
+
+	return resp_entry;
+}
+
+int rtw_wow_add_mdns_resp(_adapter *padapter, u8 index, u8 *resp_content, u16 content_len)
+{
+	struct rtw_mdns_resp_entry *resp_entry = NULL;
+
+	resp_entry = _rtw_get_mdns_resp_entry(padapter, index);
+	if (resp_entry == NULL)
+		return _FAIL;
+
+	_rtw_memcpy(resp_entry->content, resp_content, content_len);
+	resp_entry->content_len = content_len;
+
+	return _SUCCESS;
+}
+
+int rtw_wow_del_mdns_resp(_adapter *padapter, u8 index)
+{
+	struct rtw_mdns_resp_entry *resp_entry = NULL;
+
+	resp_entry = _rtw_get_mdns_resp_entry(padapter, index);
+	if (resp_entry == NULL)
+		return _FAIL;
+
+	_rtw_memset(resp_entry, 0, sizeof(struct rtw_mdns_resp_entry));
+
+	return _SUCCESS;
+}
+
+int rtw_wow_get_mdns_resp_ent(_adapter *padapter, u8 index, struct rtw_mdns_resp_entry **resp_entry)
+{
+	*resp_entry = _rtw_get_mdns_resp_entry(padapter, index);
+	if (*resp_entry == NULL)
+		return _FAIL;
+
+	return _SUCCESS;
+}
+
+int rtw_wow_add_mdns_match_crit(_adapter *padapter, u8 index, u16 match_type, u16 name_offset, u16 name_len)
+{
+	struct rtw_mdns_resp_entry *resp_entry = NULL;
+	struct rtw_mdns_match_criteria *match_ct = NULL;
+
+	resp_entry = _rtw_get_mdns_resp_entry(padapter, index);
+	if (resp_entry == NULL)
+		return _FAIL;
+
+	if (resp_entry->match_ct_num == MAX_MDNS_MATCH_CRITERIA_NUM)
+		return _FAIL;
+
+	match_ct = &resp_entry->match_ct[resp_entry->match_ct_num];
+
+	match_ct->name_offset = name_offset;
+	match_ct->type = match_type;
+	match_ct->name_len = name_len;
+
+	resp_entry->match_ct_num += 1;
+
+	return _SUCCESS;
+}
+
+int rtw_wow_del_mdns_match_crit(_adapter *padapter, u8 index)
+{
+	struct rtw_mdns_resp_entry *resp_entry = NULL;
+	struct rtw_mdns_match_criteria *match_ct = NULL;
+
+	resp_entry = _rtw_get_mdns_resp_entry(padapter, index);
+	if (resp_entry == NULL)
+		return _FAIL;
+
+	resp_entry->match_ct_num = 0;
+	_rtw_memset(resp_entry->match_ct, 0, sizeof(resp_entry->match_ct));
+
+	return _SUCCESS;
+}
+
+int rtw_wow_add_mdns_passthru_name(_adapter *padapter, u8 *name, u8 name_len)
+{
+	struct wow_priv *wowpriv = adapter_to_wowlan(padapter);
+	struct rtw_mdns_ofld_info *ofld_info = &wowpriv->mdns_ofld_info;
+	struct rtw_mdns_passthru_list *passthru_list = &ofld_info->passthru_list;
+	struct rtw_mdns_passthru_name *passthru_name = NULL;
+
+	if (passthru_list->passthru_name_num == MAX_MDNS_PASSTHRU_NAME_NUM)
+		return _FAIL;
+
+	passthru_name = &passthru_list->passthru_name[passthru_list->passthru_name_num];
+	_rtw_memcpy(passthru_name->name, name, name_len);
+	passthru_name->name_len = name_len;
+
+	passthru_list->passthru_name_num += 1;
+
+	return _SUCCESS;
+}
+
+void rtw_wow_clr_mdns_passthru_name(_adapter *padapter)
+{
+	struct wow_priv *wowpriv = adapter_to_wowlan(padapter);
+	struct rtw_mdns_ofld_info *ofld_info = &wowpriv->mdns_ofld_info;
+	struct rtw_mdns_passthru_list *passthru_list = &ofld_info->passthru_list;
+
+	passthru_list->passthru_name_num = 0;
+	_rtw_memset(passthru_list->passthru_name, 0,
+		    sizeof(struct rtw_mdns_passthru_name) * MAX_MDNS_PASSTHRU_NAME_NUM);
+}
+
+void rtw_wow_get_mdns_passthru_list(_adapter *padapter, struct rtw_mdns_passthru_list **passthru_list)
+{
+	struct wow_priv *wowpriv = adapter_to_wowlan(padapter);
+	struct rtw_mdns_ofld_info *ofld_info = &wowpriv->mdns_ofld_info;
+
+	*passthru_list = &ofld_info->passthru_list;
+}
+#endif /* CONFIG_MDNS_OFFLOAD */
 
 #ifdef CONFIG_GTK_OL
 void _update_aoac_rpt_phase_0(_adapter *adapter, struct rtw_aoac_report *aoac_info)

@@ -5122,7 +5122,7 @@ void update_mgntframe_attrib(_adapter *padapter, struct _ADAPTER_LINK *padapter_
 	bmc_sta = rtw_get_bcmc_stainfo(padapter, padapter_link);
 	if (bmc_sta == NULL) {
 		RTW_ERR("%s bmc_sta=NULL\n", __func__);
-		rtw_warn_on(1);
+		//rtw_warn_on(1);
 	}
 	pattrib->type = WIFI_MGT_TYPE;
 	pattrib->hdrlen = 24;

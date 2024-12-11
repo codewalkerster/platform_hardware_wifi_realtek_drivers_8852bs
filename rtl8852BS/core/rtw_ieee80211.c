@@ -2173,8 +2173,8 @@ ParseRes rtw_ieee802_11_override_elems_by_mbssid(
 }
 #endif /* CONFIG_STA_MULTIPLE_BSSID */
 
-static u8 key_char2num(u8 ch);
-static u8 key_char2num(u8 ch)
+u8 key_char2num(u8 ch);
+u8 key_char2num(u8 ch)
 {
 	if ((ch >= '0') && (ch <= '9'))
 		return ch - '0';

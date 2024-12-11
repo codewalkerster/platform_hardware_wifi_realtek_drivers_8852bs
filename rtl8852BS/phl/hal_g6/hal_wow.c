@@ -340,6 +340,15 @@ rtw_hal_wow_func_en(struct rtw_phl_com_t *phl_com, void *hal, u16 macid,
 			if (RTW_HAL_STATUS_SUCCESS != hstatus)
 				break;
 		}
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+		/* mDNS offload */
+		if (cfg->mdns_ofld_info->mdns_en) {
+			hstatus = rtw_hal_mac_cfg_mdns_ofld(hal_info, macid, true,
+			                                    cfg->mdns_ofld_info);
+			if (RTW_HAL_STATUS_SUCCESS != hstatus)
+				break;
+		}
+#endif
 	} while(0);
 
 	PHL_TRACE(COMP_PHL_WOW, _PHL_INFO_, "[wow] %s status(%u).\n", __func__, hstatus);
@@ -419,6 +428,16 @@ rtw_hal_wow_func_dis(struct rtw_phl_com_t *phl_com, void *hal, u16 macid,
 		if (RTW_HAL_STATUS_SUCCESS != hstatus)
 			PHL_TRACE(COMP_PHL_WOW, _PHL_INFO_, "[wow] rtw_hal_mac_cfg_periodic_wake failed \n");
 	}
+
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+	/* mDNS offload */
+	if (cfg->mdns_ofld_info->mdns_en) {
+		hstatus = rtw_hal_mac_cfg_mdns_ofld(hal_info, macid, false,
+		                                    cfg->mdns_ofld_info);
+		if (RTW_HAL_STATUS_SUCCESS != hstatus)
+			PHL_TRACE(COMP_PHL_WOW, _PHL_INFO_, "[wow] rtw_hal_mac_cfg_mdns_ofld failed \n");
+	}
+#endif
 	PHL_TRACE(COMP_PHL_WOW, _PHL_INFO_, "[wow] %s status(%u).\n", __func__, hstatus);
 
 	FUNCOUT();

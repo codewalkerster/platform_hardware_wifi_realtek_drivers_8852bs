@@ -2890,7 +2890,7 @@ enum rtw_phl_status _mcc_pkt_offload_for_client(struct phl_info_t *phl, u8 macid
 	}
 #ifdef CONFIG_PHL_PKTOFLD
 	if (NOT_USED != phl_pkt_ofld_get_id(phl, macid,
-						PKT_TYPE_NULL_DATA)) {
+						PKT_TYPE_NULL_DATA, 0)) {
 		PHL_TRACE(COMP_PHL_MCC, _PHL_ERR_, "_mcc_pkt_offload_for_client(): macid(%d), we had already offload NULL Pkt\n",
 			macid);
 		status = RTW_PHL_STATUS_SUCCESS;
@@ -2905,7 +2905,7 @@ enum rtw_phl_status _mcc_pkt_offload_for_client(struct phl_info_t *phl, u8 macid
 		MAC_ADDRESS_LENGTH);
 #ifdef CONFIG_PHL_PKTOFLD
 	if (RTW_PHL_STATUS_SUCCESS != rtw_phl_pkt_ofld_request(phl, macid,
-						PKT_TYPE_NULL_DATA, &null_token, &null_info, __func__)) {
+						PKT_TYPE_NULL_DATA, &null_token, &null_info, __func__, 0)) {
 		PHL_TRACE(COMP_PHL_MCC, _PHL_ERR_, "_mcc_pkt_offload_for_client(): Pkt offload fail, macid(%d)\n",
 			macid);
 		goto exit;

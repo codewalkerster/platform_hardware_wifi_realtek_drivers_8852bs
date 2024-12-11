@@ -533,7 +533,7 @@ static enum rtw_phl_status _lps_enter_proto_cfg(struct phl_info_t *phl_info, str
 			MAC_ADDRESS_LENGTH);
 #ifdef CONFIG_PHL_PKTOFLD
 	status = rtw_phl_pkt_ofld_request(phl_info, cfg->macid,
-				PKT_TYPE_NULL_DATA, cfg->token, &null_info, __func__);
+				PKT_TYPE_NULL_DATA, cfg->token, &null_info, __func__, 0);
 	if (status != RTW_PHL_STATUS_SUCCESS) {
 		PHL_TRACE(COMP_PHL_PS, _PHL_ERR_, "[PS], %s(): add null pkt ofld fail!\n", __func__);
 		return status;
@@ -561,7 +561,7 @@ static enum rtw_phl_status _lps_leave_proto_cfg(struct phl_info_t *phl_info, str
 	}
 #ifdef CONFIG_PHL_PKTOFLD
 	status = rtw_phl_pkt_ofld_cancel(phl_info, cfg->macid,
-					PKT_TYPE_NULL_DATA, cfg->token);
+					PKT_TYPE_NULL_DATA, cfg->token, 0);
 	if (status != RTW_PHL_STATUS_SUCCESS) {
 		PHL_TRACE(COMP_PHL_PS, _PHL_ERR_, "[PS], %s(): del null pkt ofld fail!\n", __func__);
 		return status;

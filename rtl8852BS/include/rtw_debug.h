@@ -625,6 +625,23 @@ ssize_t proc_set_wow_gpio_duration(struct file *file, const char __user *buffer,
 		size_t count, loff_t *pos, void *data);
 int proc_get_wow_gpio_duration(struct seq_file *m, void *v);
 #endif /*CONFIG_GPIO_WAKEUP*/
+#ifdef CONFIG_MDNS_OFFLOAD
+ssize_t proc_set_wow_mdns_resp(struct file *file, const char __user *buffer,
+		size_t count, loff_t *pos, void *data);
+int proc_get_wow_mdns_resp(struct seq_file *m, void *v);
+ssize_t proc_set_wow_mdns_match_criteria(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_wow_mdns_match_criteria(struct seq_file *m, void *v);
+ssize_t proc_set_wow_mdns_passthru_list(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_wow_mdns_passthru_list(struct seq_file *m, void *v);
+ssize_t proc_set_wow_mdns_offload_state(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_wow_mdns_offload_state(struct seq_file *m, void *v);
+ssize_t proc_set_wow_mdns_passthru_behavior(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_wow_mdns_passthru_behavior(struct seq_file *m, void *v);
+#endif /* CONFIG_MDNS_OFFLOAD */
 #ifdef CONFIG_WOW_PERIODIC_WAKE
 int proc_get_wow_pw_info(struct seq_file *m, void *v);
 ssize_t proc_set_wow_pw_info(struct file *file, const char __user *buffer,

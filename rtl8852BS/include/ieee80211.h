@@ -265,7 +265,7 @@ typedef struct ieee_param {
 		struct {
 			u32 len;
 			u8 reserved[32];
-			u8 data[0];
+			u8 data[];
 		} wpa_ie;
 		struct {
 			int command;
@@ -278,7 +278,7 @@ typedef struct ieee_param {
 			u8 idx;
 			u8 seq[8]; /* sequence counter (set: RX, get: TX) */
 			u16 key_len;
-			u8 key[0];
+			u8 key[];
 		} crypt;
 #ifdef CONFIG_AP_MODE
 		struct {
@@ -290,7 +290,7 @@ typedef struct ieee_param {
 		} add_sta;
 		struct {
 			u8	reserved[2];/* for set max_num_sta */
-			u8	buf[0];
+			u8	buf[];
 		} bcn_ie;
 #endif
 
@@ -2056,6 +2056,7 @@ u32	rtw_ht_mcs_set_to_bitmap(u8 *mcs_set, u8 nss);
 int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *action);
 const char *action_public_str(u8 action);
 
+u8 key_char2num(u8 ch);
 u8 key_2char2num(u8 hch, u8 lch);
 u8 str_2char2num(u8 hch, u8 lch);
 void macstr2num(u8 *dst, u8 *src);

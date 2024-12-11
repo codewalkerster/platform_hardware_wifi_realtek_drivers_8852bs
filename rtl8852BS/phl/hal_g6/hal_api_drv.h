@@ -392,7 +392,7 @@ enum rtw_hal_status
 rtw_hal_mac_get_log_efuse_bt_size(struct rtw_hal_com_t *hal_com, u32 *val);
 
 enum rtw_hal_status
-rtw_hal_mac_read_log_efuse_bt_map(struct rtw_hal_com_t *hal_com, u8 *map);
+rtw_hal_mac_read_log_efuse_bt_map(struct rtw_hal_com_t *hal_com, u8 *map, u32 size);
 
 enum rtw_hal_status
 rtw_hal_mac_write_log_efuse_bt_map(struct rtw_hal_com_t *hal_com,

@@ -238,6 +238,71 @@ struct rtw_remote_wake_ctrl_info {
 	u8 gtk_rx_iv_idx3[IV_LENGTH];
 };
 
+
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+#define MAX_MDNS_RESP_NUM 8
+#define MAX_MDNS_RESP_LEN 512
+#define MAX_MDNS_MATCH_CRITERIA_NUM 8
+#define MAX_MDNS_PASSTHRU_NAME_NUM 8
+#define MAX_MDNS_DOMAIN_NAME_LEN 255
+#define PASSTHRU_FORWARD_ALL 0
+#define PASSTHRU_DROP_ALL 1
+#define PASSTHRU_LIST 2
+
+struct rtw_mdns_ipv4_header {
+	u8 src_ipv4_addr[IPV4_ADDRESS_LENGTH];
+	u8 dst_ipv4_addr[IPV4_ADDRESS_LENGTH];
+	u8 remote_mac_addr[MAC_ADDRESS_LENGTH];
+	u8 protect_bit;
+	u8 sec_hdr_len;
+	u8 ipv4_pktid;
+};
+
+struct rtw_mdns_ipv6_header {
+	u8 src_ipv6_addr[IPV6_ADDRESS_LENGTH];
+	u8 dst_ipv6_addr[IPV6_ADDRESS_LENGTH];
+	u8 remote_mac_addr[MAC_ADDRESS_LENGTH];
+	u8 protect_bit;
+	u8 sec_hdr_len;
+	u8 ipv6_pktid;
+};
+
+struct rtw_mdns_match_criteria {
+	u16 name_offset;
+	u16 type;
+	u8 name_len;
+};
+
+struct rtw_mdns_resp_entry {
+	u16 content_len;
+	u8 data_pktid;
+	u8 match_ct_num;
+	u8 content[MAX_MDNS_RESP_LEN];
+	struct rtw_mdns_match_criteria match_ct[MAX_MDNS_MATCH_CRITERIA_NUM];
+};
+
+struct rtw_mdns_passthru_name {
+	u8 name[MAX_MDNS_DOMAIN_NAME_LEN];
+	u8 name_len;
+	u8 pass_pktid;
+};
+
+struct rtw_mdns_passthru_list {
+	u8 passthru_behavior;
+	u8 passthru_name_num;
+	struct rtw_mdns_passthru_name passthru_name[MAX_MDNS_PASSTHRU_NAME_NUM];
+};
+
+struct rtw_mdns_ofld_info {
+	u8 mdns_en;
+	u8 offload_state;
+	struct rtw_mdns_resp_entry resp_entry[MAX_MDNS_RESP_NUM];
+	struct rtw_mdns_passthru_list passthru_list;
+	struct rtw_mdns_ipv4_header mdns_ipv4_header;
+	struct rtw_mdns_ipv6_header mdns_ipv6_header;
+};
+#endif /* CONFIG_PHL_MDNS_OFFLOAD */
+
 struct rtw_wow_wake_info {
 	/* core */
 	u8 wow_en;
@@ -286,6 +351,9 @@ void rtw_phl_cfg_nlo_info(void *phl, struct rtw_nlo_info *info);
 void rtw_phl_cfg_periodic_wake_info(void *phl, struct rtw_periodic_wake_info *info);
 void rtw_phl_cfg_arp_ofld_info(void *phl, struct rtw_arp_ofld_info *info);
 void rtw_phl_cfg_ndp_ofld_info(void *phl, struct rtw_ndp_ofld_info *info);
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+void rtw_phl_cfg_mdns_ofld_info(void *phl, struct rtw_mdns_ofld_info *info);
+#endif
 enum rtw_phl_status rtw_phl_remove_wow_ptrn_info(void *phl, u8 phl_ptrn_id);
 enum rtw_phl_status rtw_phl_add_wow_ptrn_info(void *phl, struct rtw_wowcam_upd_info *info, u8 *phl_ptrn_id);
 enum rtw_phl_status rtw_phl_cfg_gtk_ofld_info(void *phl, struct rtw_gtk_ofld_info *info);

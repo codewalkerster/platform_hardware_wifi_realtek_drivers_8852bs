@@ -28,6 +28,7 @@
 #define phl_to_wow_info(_phl) (&_phl->wow_info)
 #define get_wow_pairwise_algo_type(_wow_info) (_wow_info->wow_wake_info.pairwise_sec_algo)
 #define get_wow_group_algo_type(_wow_info) (_wow_info->wow_wake_info.group_sec_algo)
+#define set_wow_init_pkt_ofld_id(pkt_id) (*pkt_id = 0xff)
 
 struct phl_wow_error {
 	u32 init;
@@ -78,6 +79,12 @@ struct phl_wow_info {
 	u32 ack_pkt_token;
 	u32 wp_token;
 	u32 probe_req_pkt_token;
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+	u32 mdns_rsp_ipv4_token;
+	u32 mdns_rsp_ipv6_token;
+	u32 mdns_rsp_data_token[MAX_MDNS_RESP_NUM];
+	u32 mdns_passthru_list_token[MAX_MDNS_PASSTHRU_NAME_NUM];
+#endif
 
 	/* func */
 	struct rtw_keep_alive_info keep_alive_info;
@@ -91,6 +98,9 @@ struct phl_wow_info {
 	struct rtw_pattern_match_info pattern_match_info;
 	struct rtw_wow_gpio_info wow_gpio;
 	struct rtw_periodic_wake_info periodic_wake_info;
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+	struct rtw_mdns_ofld_info *mdns_ofld_info;
+#endif
 
 	/* info to core */
 	enum rtw_mac_wow_wake_reason wake_rsn;

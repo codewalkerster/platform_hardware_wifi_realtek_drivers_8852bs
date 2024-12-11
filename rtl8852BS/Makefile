@@ -157,8 +157,8 @@ endif
 CONFIG_RTW_DEBUG = y
 # default log level is _DRV_INFO_ = 4,
 # please refer to "How_to_set_driver_debug_log_level.doc" to set the available level.
-CONFIG_RTW_LOG_LEVEL = 4
-CONFIG_RTW_PHL_LOG_LEVEL = 4
+CONFIG_RTW_LOG_LEVEL = 0
+CONFIG_RTW_PHL_LOG_LEVEL = 0
 
 # CONFIG_RTW_APPEND_LOGLEVEL decide if append kernel log level to each messages.
 # default "n" for don't append.
@@ -199,6 +199,7 @@ CONFIG_WOWLAN = n
 #    bit3: customized pattern match
 #    bit4: pairwise key rekey
 CONFIG_WAKEUP_TYPE = 0x0f
+CONFIG_GOOGLE_CAST_WAKEUP = n
 CONFIG_WOW_IPS_MODE = default
 CONFIG_WOW_LPS_MODE = default
 #bit0: disBBRF off, #bit1: Wireless remote controller (WRC)
@@ -212,6 +213,7 @@ CONFIG_HIGH_ACTIVE_DEV2HST = n
 #0:TOGGLE 1:PULSE
 CONFIG_TOGGLE_PULSE = 0
 CONFIG_PULSE_COUNT = 3
+CONFIG_MDNS_OFFLOAD = n
 ######### only for USB #########
 CONFIG_ONE_PIN_GPIO = n
 CONFIG_HIGH_ACTIVE_HST2DEV = n
@@ -595,6 +597,9 @@ endif
 ifeq ($(CONFIG_WOWLAN), y)
 EXTRA_CFLAGS += -DCONFIG_WOWLAN -DRTW_WAKEUP_EVENT=$(CONFIG_WAKEUP_TYPE)
 EXTRA_CFLAGS += -DRTW_SUSPEND_TYPE=$(CONFIG_SUSPEND_TYPE)
+ifeq ($(CONFIG_GOOGLE_CAST_WAKEUP), y)
+EXTRA_CFLAGS += -DCONFIG_GOOGLE_CAST_WAKEUP
+endif
 ifeq ($(CONFIG_WOW_STA_MIX), y)
 EXTRA_CFLAGS += -DRTW_WOW_STA_MIX
 endif
@@ -617,6 +622,10 @@ endif
 
 ifeq ($(CONFIG_PNO_SUPPORT), y)
 EXTRA_CFLAGS += -DCONFIG_PNO_SUPPORT
+endif
+
+ifeq ($(CONFIG_MDNS_OFFLOAD), y)
+EXTRA_CFLAGS += -DCONFIG_MDNS_OFFLOAD
 endif
 
 ifeq ($(CONFIG_GPIO_WAKEUP), y)

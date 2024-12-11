@@ -285,6 +285,12 @@ enum rtw_hal_status
 rtw_hal_mac_wow_req_tri_evt(struct hal_info_t *hal);
 enum rtw_hal_status
 rtw_hal_mac_wow_req_diag_rpt(struct hal_info_t *hal);
+
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+enum rtw_hal_status
+rtw_hal_mac_cfg_mdns_ofld(struct hal_info_t *hal_info, u16 macid, u8 en,
+			  struct rtw_mdns_ofld_info *cfg);
+#endif
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_PHL_SCANOFLD

@@ -3522,6 +3522,38 @@ static u8 _cfg_gtk_ofld_info(struct _ADAPTER *a)
 }
 #endif
 
+#ifdef CONFIG_MDNS_OFFLOAD
+static u8 _cfg_mdns_ofld_info(struct _ADAPTER *a)
+{
+	struct dvobj_priv *d;
+	void *phl;
+	struct mlme_ext_priv *pmlmeext = &(a->mlmeextpriv);
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wow_priv *wowpriv = adapter_to_wowlan(a);
+	struct rtw_mdns_ofld_info *info = &wowpriv->mdns_ofld_info;
+
+	d = adapter_to_dvobj(a);
+	phl = GET_PHL_INFO(d);
+
+	info->mdns_en = 1;
+
+	if (info->mdns_en) {
+		/* Sender IP address */
+		if (!is_all_null(pmlmeinfo->ip_addr, RTW_IP_ADDR_LEN))
+			_rtw_memcpy(info->mdns_ipv4_header.src_ipv4_addr,
+			            pmlmeinfo->ip_addr, IPV4_ADDRESS_LENGTH);
+#ifdef CONFIG_IPV6
+		if (!is_all_null(pmlmeinfo->ip6_addr, RTW_IPv6_ADDR_LEN))
+			_rtw_memcpy(info->mdns_ipv6_header.src_ipv6_addr,
+			            pmlmeinfo->ip6_addr, IPV6_ADDRESS_LENGTH);
+#endif	
+	}
+	rtw_phl_cfg_mdns_ofld_info(phl, info);
+
+	return _SUCCESS;
+}
+#endif /* CONFIG_MDNS_OFFLOAD */
+
 static u8 _cfg_realwow_info(struct _ADAPTER *a)
 {
 	struct rtw_realwow_info info;
@@ -3570,11 +3602,17 @@ static u8 _cfg_wow_wake(struct _ADAPTER *a, u8 wow_en)
 	else
 		wow_wake_event.deauth_wakeup = _FALSE;
 	/* wake up by pattern match packet */
-	if (registry_par->wakeup_event & (BIT(1) | BIT(3))) {
+	if ((registry_par->wakeup_event & (BIT(1) | BIT(3)))
+#ifdef CONFIG_GOOGLE_CAST_WAKEUP
+		|| _TRUE
+#endif
+	) {
 		wow_wake_event.pattern_match_en = _TRUE;
 
 		rtw_wow_pattern_clean(a, RTW_DEFAULT_PATTERN);
-
+#ifdef CONFIG_GOOGLE_CAST_WAKEUP
+		rtw_set_google_cast_mdns_wow_pattern(a);
+#endif
 		if (registry_par->wakeup_event & BIT(1))
 			rtw_set_default_pattern(a);
 
@@ -3756,6 +3794,11 @@ static u8 _wow_cfg(struct _ADAPTER *a, u8 wow_en, u8 no_link_mode)
 
 #ifdef CONFIG_GTK_OL
 		if (!_cfg_gtk_ofld_info(a))
+			return _FAIL;
+#endif
+
+#ifdef CONFIG_MDNS_OFFLOAD
+		if (!_cfg_mdns_ofld_info(a))
 			return _FAIL;
 #endif
 

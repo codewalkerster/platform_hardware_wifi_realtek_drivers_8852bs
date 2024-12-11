@@ -1154,10 +1154,12 @@ struct pkt_ofld_info {
 	u8 id;
 };
 
+/* Up to 8 add_pkt_ofld are allowed for the same type */
+#define PKT_OFLD_MAX_VAL 8
 struct pkt_ofld_entry {
 	struct list_head list;
 	u16 macid;
-	struct pkt_ofld_info pkt_info[PKT_OFLD_TYPE_MAX];
+	struct pkt_ofld_info pkt_info[PKT_OFLD_TYPE_MAX][PKT_OFLD_MAX_VAL];
 };
 
 enum rtw_c2h_cat {
@@ -1243,6 +1245,9 @@ struct rtw_hal_wow_cfg {
 	struct rtw_pattern_match_info *pattern_match_info;
 	struct rtw_wow_gpio_info *wow_gpio;
 	struct rtw_periodic_wake_info *periodic_wake_cfg;
+#ifdef CONFIG_PHL_MDNS_OFFLOAD
+	struct rtw_mdns_ofld_info *mdns_ofld_info;
+#endif
 };
 #endif /* CONFIG_WOWLAN */
 

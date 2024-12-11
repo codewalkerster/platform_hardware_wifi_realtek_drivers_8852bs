@@ -1120,7 +1120,7 @@ enum rtw_hal_status rtw_efuse_bt_shadow_load(void *efuse)
 	struct efuse_t *efuse_info = efuse;
 
 	status = rtw_hal_mac_read_log_efuse_bt_map(efuse_info->hal_com,
-											efuse_info->bt_shadow_map);
+						efuse_info->bt_shadow_map, efuse_info->bt_log_efuse_size);
 
 	return status;
 }
@@ -1159,7 +1159,7 @@ enum rtw_hal_status rtw_efuse_bt_shadow_update(void *efuse)
 
 	/* Reload shadow map after PG */
 	reload_status = rtw_hal_mac_read_log_efuse_bt_map(efuse_info->hal_com,
-								efuse_info->bt_shadow_map);
+								efuse_info->bt_shadow_map, efuse_info->bt_log_efuse_size);
 	if(reload_status != RTW_HAL_STATUS_SUCCESS)
 		PHL_WARN("%s: Reload bt shadow map Fail!\n", __FUNCTION__);
 

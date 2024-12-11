@@ -52,14 +52,14 @@ _chinfo_chk_pkt_offload(struct phl_info_t *phl_info,
 		if (cur_parm->pkt_id[macid] != NOT_USED) {
 			rtw_phl_pkt_ofld_cancel(phl_info, macid,
 				PKT_TYPE_NULL_DATA,
-				&cur_parm->pkt_token[macid]);
+				&cur_parm->pkt_token[macid], 0);
 			cur_parm->pkt_id[macid] = NOT_USED;
 			pkt_ids_changed = true;
 		}
 		goto chk_ids;
 	}
 
-	pkt_id = phl_pkt_ofld_get_id(phl_info, macid, PKT_TYPE_NULL_DATA);
+	pkt_id = phl_pkt_ofld_get_id(phl_info, macid, PKT_TYPE_NULL_DATA, 0);
 	if (pkt_id == NOT_USED) {
 		void *d = phl_to_drvpriv(phl_info);
 		u8 *a3;
@@ -75,12 +75,12 @@ _chinfo_chk_pkt_offload(struct phl_info_t *phl_info,
 	}
 
 	sts = rtw_phl_pkt_ofld_request(phl_info, macid,
-		PKT_TYPE_NULL_DATA, &token, &null_info, __func__);
+		PKT_TYPE_NULL_DATA, &token, &null_info, __func__, 0);
 	if (sts != RTW_PHL_STATUS_SUCCESS)
 		goto exit;
 
 	if (pkt_id == NOT_USED)
-		pkt_id = phl_pkt_ofld_get_id(phl_info, macid, PKT_TYPE_NULL_DATA);
+		pkt_id = phl_pkt_ofld_get_id(phl_info, macid, PKT_TYPE_NULL_DATA, 0);
 
 	if (cur_parm->pkt_id[peer_sta->macid] != pkt_id) {
 		cur_parm->pkt_id[peer_sta->macid] = pkt_id;

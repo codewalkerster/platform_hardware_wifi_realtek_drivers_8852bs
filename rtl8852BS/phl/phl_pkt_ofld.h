@@ -229,13 +229,13 @@ enum rtw_phl_status phl_pkt_ofld_del_entry(struct phl_info_t *phl_info, u16 maci
 
 enum rtw_phl_status rtw_phl_pkt_ofld_request(struct phl_info_t *phl_info,
 						u16 macid, u8 type,
-						u32 *token, void *buf, const char *req_name);
+						u32 *token, void *buf, const char *req_name, u8 ofld_idx);
 
 enum rtw_phl_status rtw_phl_pkt_ofld_cancel(struct phl_info_t *phl_info,
-					u16 macid, u8 type, u32 *token);
+					u16 macid, u8 type, u32 *token, u8 ofld_idx);
 
 void phl_pkt_ofld_show_info(struct phl_info_t *phl_info);
-u8 phl_pkt_ofld_get_id(struct phl_info_t *phl_info, u16 macid, u8 type);
+u8 phl_pkt_ofld_get_id(struct phl_info_t *phl_info, u16 macid, u8 type, u8 ofld_idx);
 const char *phl_get_pkt_ofld_str(enum pkt_ofld_type type);
 #endif
 
