@@ -583,6 +583,12 @@ u32 mac_chk_leave_lps(struct mac_ax_adapter *adapter, u8 macid)
 	u8 macid_grp = macid >> MACID_GRP_SH;
 	u8 macid_sh = macid & MACID_GRP_MASK;
 
+	/* If FWIPS is also enabled in the same MACID, it should be followed by
+	 * leaving LPS. Bypass this check preventing from polling timeout.
+	 */
+	if (ips_status[macid_grp] & BIT(macid_sh))
+		return MACSUCCESS;
+
 	role = mac_role_srch(adapter, macid);
 
 	if (!role) {
@@ -763,6 +769,12 @@ u32 mac_chk_leave_ips(struct mac_ax_adapter *adapter, u8 macid)
 	u32 reg_sleep = 0;
 	u8 macid_grp = macid >> MACID_GRP_SH;
 	u8 macid_sh = macid & MACID_GRP_MASK;
+
+	/* If LPS is also enabled in the same MACID, it should be followed by
+	 * leaving FWIPS. Bypass this check preventing from polling timeout.
+	 */
+	if (lps_status[macid_grp] & BIT(macid_sh))
+		return MACSUCCESS;
 
 	role = mac_role_srch(adapter, macid);
 

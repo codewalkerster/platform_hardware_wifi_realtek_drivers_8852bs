@@ -318,6 +318,17 @@ module_param(rtw_rf_path, int, 0644);
 module_param(rtw_tx_nss, int, 0644);
 module_param(rtw_rx_nss, int, 0644);
 
+#ifdef CONFIG_SDIO_HCI
+#if defined(CONFIG_RTW_SDIO_RECORDS) && !CONFIG_RTW_SDIO_RECORDS_STATIC
+uint rtw_sdio_records_num = CONFIG_RTW_SDIO_RECORDS_NUM;
+module_param(rtw_sdio_records_num, uint, 0644);
+uint rtw_sdio_records_enable = CONFIG_RTW_SDIO_RECORDS_ENABLE;
+module_param(rtw_sdio_records_enable, uint, 0644);
+uint rtw_sdio_records_loop = CONFIG_RTW_SDIO_RECORDS_LOOP;
+module_param(rtw_sdio_records_loop, uint, 0644);
+#endif /* CONFIG_RTW_SDIO_RECORDS  && !CONFIG_RTW_SDIO_RECORDS_STATIC */
+#endif /* CONFIG_SDIO_HCI */
+
 #ifdef CONFIG_REGD_SRC_FROM_OS
 static uint rtw_regd_src = CONFIG_RTW_REGD_SRC;
 module_param(rtw_regd_src, uint, 0644);

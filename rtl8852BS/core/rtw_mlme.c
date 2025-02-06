@@ -3161,7 +3161,7 @@ void rtw_join_timeout_handler(void *ctx)
 
 	_rtw_spinlock_bh(&pmlmepriv->lock);
 
-	if (check_fwstate(pmlmepriv, WIFI_UNDER_LINKING) == _TRUE || adapter->connect_token)
+	if (check_fwstate(pmlmepriv, WIFI_UNDER_LINKING) == _TRUE)
 		rtw_connect_abort(adapter);
 
 #ifdef CONFIG_LAYER2_ROAMING

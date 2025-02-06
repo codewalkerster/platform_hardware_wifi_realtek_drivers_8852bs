@@ -57,9 +57,7 @@ MODULE_DEVICE_TABLE(sdio, sdio_ids);
 
 static int rtw_dev_probe(struct sdio_func *func, const struct sdio_device_id *id);
 static void rtw_dev_remove(struct sdio_func *func);
-#ifdef CONFIG_SDIO_HOOK_DEV_SHUTDOWN
 static void rtw_dev_shutdown(struct device *dev);
-#endif
 static int rtw_sdio_resume(struct device *dev);
 static int rtw_sdio_suspend(struct device *dev);
 
@@ -81,9 +79,7 @@ static struct sdio_drv_priv sdio_drvpriv = {
 	.rtw_sdio_drv.name = (char *)DRV_NAME,
 	.rtw_sdio_drv.id_table = sdio_ids,
 	.rtw_sdio_drv.drv = {
-#ifdef CONFIG_SDIO_HOOK_DEV_SHUTDOWN
 		.shutdown = rtw_dev_shutdown,
-#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
 		.pm = &rtw_sdio_pm_ops,
 #endif
@@ -867,7 +863,6 @@ static void rtw_dev_remove(struct sdio_func *func)
 	RTW_INFO("-%s done\n", __func__);
 }
 
-#ifdef CONFIG_SDIO_HOOK_DEV_SHUTDOWN
 static void rtw_dev_shutdown(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
@@ -881,7 +876,6 @@ static void rtw_dev_shutdown(struct device *dev)
 
 	RTW_INFO("<== %s !\n", __func__);
 }
-#endif
 
 static int rtw_sdio_suspend(struct device *dev)
 {
@@ -1048,6 +1042,7 @@ static int __init rtw_drv_entry(void)
 	rtw_nlrtw_init();
 	rtw_ndev_notifier_register();
 	rtw_inetaddr_notifier_register();
+	rtw_sdio_records_init();
 
 	ret = sdio_register_driver(&sdio_drvpriv.rtw_sdio_drv);
 	if (ret != 0) {
@@ -1057,6 +1052,7 @@ static int __init rtw_drv_entry(void)
 		rtw_nlrtw_deinit();
 		rtw_ndev_notifier_unregister();
 		rtw_inetaddr_notifier_unregister();
+		rtw_sdio_records_deinit();
 		RTW_INFO("%s: register driver failed!!(%d)\n", __FUNCTION__, ret);
 		goto poweroff;
 	}
@@ -1088,6 +1084,7 @@ static void __exit rtw_drv_halt(void)
 	rtw_nlrtw_deinit();
 	rtw_ndev_notifier_unregister();
 	rtw_inetaddr_notifier_unregister();
+	rtw_sdio_records_deinit();
 
 	RTW_PRINT("module exit success\n");
 

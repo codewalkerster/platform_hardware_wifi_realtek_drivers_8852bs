@@ -647,6 +647,14 @@ int proc_get_wow_pw_info(struct seq_file *m, void *v);
 ssize_t proc_set_wow_pw_info(struct file *file, const char __user *buffer,
 			     size_t count, loff_t *pos, void *data);
 #endif
+
+#ifdef CONFIG_WOW_APF
+ssize_t proc_set_wow_apf(struct file *file, const char __user *buffer,
+		size_t count, loff_t *pos, void *data);
+int proc_get_wow_apf(struct seq_file *m, void *v);
+
+#endif
+
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_P2P_WOWLAN

@@ -696,6 +696,132 @@ exit:
 	return count;
 }
 #endif /* DBG_SDIO */
+
+#ifdef CONFIG_RTW_SDIO_RECORDS
+
+static bool sdio_records_ori_enabled;
+
+static void *proc_start_sdio_records(struct seq_file *m, loff_t *pos)
+{
+	size_t seq = *pos;
+
+	if (seq == 0) {
+		sdio_records_ori_enabled = rtw_sdio_records_enabled();
+		if (sdio_records_ori_enabled) {
+			struct net_device *dev = m->private;
+			_adapter *adapter = rtw_netdev_priv(dev);
+
+			/* ori enabled, claim and disable */
+			rtw_sdio_records_claim_and_enable(adapter_to_dvobj(adapter), false);
+		}
+	}
+
+	if (!rtw_sdio_record_valid(seq))
+		return NULL;
+	return pos;
+}
+
+static void proc_stop_sdio_records(struct seq_file *m, void *v)
+{
+	if (!v) {
+		if (sdio_records_ori_enabled && !rtw_sdio_records_enabled()) {
+			struct net_device *dev = m->private;
+			_adapter *adapter = rtw_netdev_priv(dev);
+
+			/* ori enabled and disabled now, claim and enable */
+			rtw_sdio_records_claim_and_enable(adapter_to_dvobj(adapter), true);
+		}
+	}
+}
+
+static void *proc_next_sdio_records(struct seq_file *m, void *v, loff_t *pos)
+{
+	size_t seq = ++(*pos);
+
+	if (!rtw_sdio_record_valid(seq))
+		return NULL;
+
+	return pos;
+}
+
+static int proc_get_sdio_records(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	size_t seq = *((loff_t *)(v));
+	bool tab = false;
+
+	if (seq == 0)
+		rtw_sdio_records_dump_title(m, tab);
+	rtw_sdio_records_dump_value_by_seq(m, tab, seq);
+
+	return 0;
+}
+
+static int proc_get_sdio_records_tab(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	size_t seq = *((loff_t *)(v));
+	bool tab = true;
+
+	if (seq == 0)
+		rtw_sdio_records_dump_title(m, tab);
+	rtw_sdio_records_dump_value_by_seq(m, tab, seq);
+
+	return 0;
+}
+
+static struct seq_operations seq_ops_sdio_records = {
+	.start = proc_start_sdio_records,
+	.stop  = proc_stop_sdio_records,
+	.next  = proc_next_sdio_records,
+	.show  = proc_get_sdio_records,
+};
+
+static struct seq_operations seq_ops_sdio_records_tab = {
+	.start = proc_start_sdio_records,
+	.stop  = proc_stop_sdio_records,
+	.next  = proc_next_sdio_records,
+	.show  = proc_get_sdio_records_tab,
+};
+
+static ssize_t proc_set_sdio_records(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	char tmp[32];
+	int enable;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		int num = sscanf(tmp, "%d", &enable);
+
+		if (num >= 1) {
+			struct net_device *dev = data;
+			_adapter *adapter = rtw_netdev_priv(dev);
+			struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+
+			if (rtw_sdio_records_enabled() && !enable) {
+				/* on -> off */
+				rtw_sdio_records_claim_and_enable(dvobj, false);
+			} else if (!rtw_sdio_records_enabled() && enable) {
+				/* off -> on */
+				rtw_sdio_records_clear();
+				rtw_sdio_records_claim_and_enable(dvobj, true);
+			}
+		}
+	}
+
+	return count;
+}
+#endif /* CONFIG_RTW_SDIO_RECORDS */
+
 #endif /* CONFIG_SDIO_HCI */
 
 static int proc_get_mac_reg_dump(struct seq_file *m, void *v)
@@ -5365,6 +5491,12 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #ifdef DBG_SDIO
 	RTW_PROC_HDL_SSEQ("sdio_dbg", proc_get_sdio_dbg, proc_set_sdio_dbg),
 #endif /* DBG_SDIO */
+
+#ifdef CONFIG_RTW_SDIO_RECORDS
+	RTW_PROC_HDL_SEQ("sdio_records", &seq_ops_sdio_records, proc_set_sdio_records),
+	RTW_PROC_HDL_SEQ("sdio_records_tab", &seq_ops_sdio_records_tab, proc_set_sdio_records),
+#endif
+
 #endif /* CONFIG_SDIO_HCI */
 
 	RTW_PROC_HDL_SSEQ("del_rx_ampdu_test_case", NULL, proc_set_del_rx_ampdu_test_case),
@@ -5510,7 +5642,11 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	RTW_PROC_HDL_SSEQ("wow_mdns_offload_state", proc_get_wow_mdns_offload_state, proc_set_wow_mdns_offload_state),
 	RTW_PROC_HDL_SSEQ("wow_mdns_passthru_behavior", proc_get_wow_mdns_passthru_behavior, proc_set_wow_mdns_passthru_behavior),
 #endif
+#ifdef CONFIG_WOW_APF
+	RTW_PROC_HDL_SSEQ("wow_apf", proc_get_wow_apf, proc_set_wow_apf),
 #endif
+#endif /* CONFIG_WOWLAN */
+
 
 #ifdef CONFIG_P2P_WOWLAN
 	RTW_PROC_HDL_SSEQ("p2p_wowlan_info", proc_get_p2p_wowlan_info, NULL),

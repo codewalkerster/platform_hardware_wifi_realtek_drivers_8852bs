@@ -347,6 +347,7 @@ bool _rtw_time_after_eq(systime a, systime b);
 #define rtw_time_before_eq(a, b) _rtw_time_after_eq(b, a)
 #endif
 
+#ifndef CONFIG_OSDEP_SPTIME_API
 sysptime rtw_sptime_get(void);
 sysptime rtw_sptime_get_raw(void);
 sysptime rtw_sptime_set(s64 secs, const u32 nsecs);
@@ -371,6 +372,7 @@ s64 rtw_sptime_diff_us(const sysptime start, const sysptime end);
 s64 rtw_sptime_pass_us(const sysptime start);
 s64 rtw_sptime_diff_ns(const sysptime start, const sysptime end);
 s64 rtw_sptime_pass_ns(const sysptime start);
+#endif /* !CONFIG_OSDEP_SPTIME_API */
 
 void rtw_sleep_schedulable(int ms);
 

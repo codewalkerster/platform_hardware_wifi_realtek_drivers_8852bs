@@ -3237,6 +3237,13 @@ u32 mac_sram_dbg_write(struct mac_ax_adapter *adapter, u32 offset,
 		return MACIOERRINSEC;
 	}
 
+	if (sel == AXIDMA_SEL) {
+		if(!(MAC_REG_R32(R_AX_PLATFORM_ENABLE) & B_AX_AXIDMA_EN)) {
+			PLTFM_MSG_ERR("[ERR]ind accees fail AXIDMA is disable\n");
+			return MACIOERRPWR;
+		}
+	}
+
 	switch (sel) {
 	case CPU_LOCAL_SEL:
 		reg_base = CPU_LOCAL_BASE_ADDR + offset;
@@ -3324,6 +3331,13 @@ u32 mac_sram_dbg_read(struct mac_ax_adapter *adapter, u32 offset, u32 *val,
 	if (adapter->fw_info.is_sec_ic) {
 		PLTFM_MSG_ERR("[ERR]security mode ind accees\n");
 		return MACIOERRINSEC;
+	}
+
+	if (sel == AXIDMA_SEL) {
+		if(!(MAC_REG_R32(R_AX_PLATFORM_ENABLE) & B_AX_AXIDMA_EN)) {
+			PLTFM_MSG_ERR("[ERR]ind accees fail AXIDMA is disable\n");
+			return MACIOERRPWR;
+		}
 	}
 
 	switch (sel) {

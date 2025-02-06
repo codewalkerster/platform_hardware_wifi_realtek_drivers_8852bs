@@ -1470,51 +1470,53 @@ static void rtw_get_tx_idle(_adapter *padapter)
 
 	pmp_priv->rtw_mp_tx_state = 0;
 	for (j = 0; j < 10 ; j++) {
+		int t = 0, cnt = 0;
+
+		rtw_msleep_os(1);
 		if (rtw_phl_mp_tx_cmd(padapter, RTW_MP_TX_CHECK_TX_IDLE,
 							pmp_priv->rtw_mp_tx_method, _FALSE))
-		if (pmp_priv->rtw_mp_tx_state == 1)
-			break;
-		rtw_msleep_os(1);
-	}
-	rtw_phl_get_mac_sel_tx_status(dvobj->phl, 0, (void*)&tx_cnt);
 
-	RTW_INFO("[MP 1] TX CNT - LCCK : %d\n", tx_cnt.txcnt[0]);
-	RTW_INFO("[MP 1] TX CNT - SCCK : %d\n", tx_cnt.txcnt[1]);
-	RTW_INFO("[MP 1] TX CNT - OFDM : %d\n", tx_cnt.txcnt[2]);
-	RTW_INFO("[MP 1] TX CNT - HT : %d\n", tx_cnt.txcnt[3]);
-	RTW_INFO("[MP 1] TX CNT - HTGF : %d\n", tx_cnt.txcnt[4]);
-	RTW_INFO("[MP 1] TX CNT - VHTSU : %d\n", tx_cnt.txcnt[5]);
-	RTW_INFO("[MP 1] TX CNT - VHTMU : %d\n", tx_cnt.txcnt[6]);
-	RTW_INFO("[MP 1] TX CNT - HESU : %d\n", tx_cnt.txcnt[7]);
-	RTW_INFO("[MP 1] TX CNT - HEERSU : %d\n", tx_cnt.txcnt[8]);
-	RTW_INFO("[MP 1] TX CNT - HEMU : %d\n", tx_cnt.txcnt[9]);
-	RTW_INFO("[MP 1] TX CNT - HETB : %d\n", tx_cnt.txcnt[10]);
+		rtw_phl_get_mac_sel_tx_status(dvobj->phl, 0, (void*)&tx_cnt);
+		RTW_INFO("[MP 1] TX CNT - LCCK : %d\n", tx_cnt.txcnt[0]);
+		RTW_INFO("[MP 1] TX CNT - SCCK : %d\n", tx_cnt.txcnt[1]);
+		RTW_INFO("[MP 1] TX CNT - OFDM : %d\n", tx_cnt.txcnt[2]);
+		RTW_INFO("[MP 1] TX CNT - HT : %d\n", tx_cnt.txcnt[3]);
+		RTW_INFO("[MP 1] TX CNT - HTGF : %d\n", tx_cnt.txcnt[4]);
+		RTW_INFO("[MP 1] TX CNT - VHTSU : %d\n", tx_cnt.txcnt[5]);
+		RTW_INFO("[MP 1] TX CNT - VHTMU : %d\n", tx_cnt.txcnt[6]);
+		RTW_INFO("[MP 1] TX CNT - HESU : %d\n", tx_cnt.txcnt[7]);
+		RTW_INFO("[MP 1] TX CNT - HEERSU : %d\n", tx_cnt.txcnt[8]);
+		RTW_INFO("[MP 1] TX CNT - HEMU : %d\n", tx_cnt.txcnt[9]);
+		RTW_INFO("[MP 1] TX CNT - HETB : %d\n", tx_cnt.txcnt[10]);
 
-	for (j = 0; j < 100 ; j++) {
-		int t = 0;
+		if (pmp_priv->rtw_mp_tx_state == 1) {
 
-		rtw_msleep_os(1);
-		rtw_phl_get_mac_sel_tx_status(dvobj->phl, 0, (void*)&tx_cnt_new);
-		for (i = 0; i <= 10 ; i++) {
-			if (tx_cnt_new.txcnt[i] > tx_cnt.txcnt[i]) {
-				t = 1;
-				break;
+			rtw_phl_get_mac_sel_tx_status(dvobj->phl, 0, (void*)&tx_cnt_new);
+			RTW_INFO("[MP 2] TX CNT - LCCK : %d\n", tx_cnt_new.txcnt[0]);
+			RTW_INFO("[MP 2] TX CNT - SCCK : %d\n", tx_cnt_new.txcnt[1]);
+			RTW_INFO("[MP 2] TX CNT - OFDM : %d\n", tx_cnt_new.txcnt[2]);
+			RTW_INFO("[MP 2] TX CNT - HT : %d\n", tx_cnt_new.txcnt[3]);
+			RTW_INFO("[MP 2] TX CNT - HTGF : %d\n", tx_cnt_new.txcnt[4]);
+			RTW_INFO("[MP 2] TX CNT - VHTSU : %d\n", tx_cnt_new.txcnt[5]);
+			RTW_INFO("[MP 2] TX CNT - VHTMU : %d\n", tx_cnt_new.txcnt[6]);
+			RTW_INFO("[MP 2] TX CNT - HESU : %d\n", tx_cnt_new.txcnt[7]);
+			RTW_INFO("[MP 2] TX CNT - HEERSU : %d\n", tx_cnt_new.txcnt[8]);
+			RTW_INFO("[MP 2] TX CNT - HEMU : %d\n", tx_cnt_new.txcnt[9]);
+			RTW_INFO("[MP 2] TX CNT - HETB : %d\n", tx_cnt_new.txcnt[10]);
+			for (i = 0; i < 10 ; i++) {
+				if (tx_cnt_new.txcnt[i] > tx_cnt.txcnt[i]) {
+					t = 1;
+					break;
+				} else if (tx_cnt_new.txcnt[i] == tx_cnt.txcnt[i]) {
+					cnt++;
+				}
 			}
+			RTW_INFO("[MP 2] TX CNT : %d\n", cnt);
 		}
-		if (t == 1)
-			break; 
+		if (t == 1 || cnt ==10)
+			break;
 	}
-	RTW_INFO("[MP 2] TX CNT - LCCK : %d\n", tx_cnt_new.txcnt[0]);
-	RTW_INFO("[MP 2] TX CNT - SCCK : %d\n", tx_cnt_new.txcnt[1]);
-	RTW_INFO("[MP 2] TX CNT - OFDM : %d\n", tx_cnt_new.txcnt[2]);
-	RTW_INFO("[MP 2] TX CNT - HT : %d\n", tx_cnt_new.txcnt[3]);
-	RTW_INFO("[MP 2] TX CNT - HTGF : %d\n", tx_cnt_new.txcnt[4]);
-	RTW_INFO("[MP 2] TX CNT - VHTSU : %d\n", tx_cnt_new.txcnt[5]);
-	RTW_INFO("[MP 2] TX CNT - VHTMU : %d\n", tx_cnt_new.txcnt[6]);
-	RTW_INFO("[MP 2] TX CNT - HESU : %d\n", tx_cnt_new.txcnt[7]);
-	RTW_INFO("[MP 2] TX CNT - HEERSU : %d\n", tx_cnt_new.txcnt[8]);
-	RTW_INFO("[MP 2] TX CNT - HEMU : %d\n", tx_cnt_new.txcnt[9]);
-	RTW_INFO("[MP 2] TX CNT - HETB : %d\n", tx_cnt_new.txcnt[10]);
+
 	return;
 }
 

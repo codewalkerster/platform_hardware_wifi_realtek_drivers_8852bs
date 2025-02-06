@@ -623,6 +623,21 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 /*Don't release SDIO irq in suspend/resume procedure*/
 #define CONFIG_RTW_SDIO_KEEP_IRQ	0
 
+#ifdef CONFIG_RTW_SDIO_RECORDS
+	#ifndef CONFIG_RTW_SDIO_RECORDS_STATIC
+	#define CONFIG_RTW_SDIO_RECORDS_STATIC 0
+	#endif
+	#ifndef CONFIG_RTW_SDIO_RECORDS_NUM
+	#define CONFIG_RTW_SDIO_RECORDS_NUM 30000
+	#endif
+	#ifndef CONFIG_RTW_SDIO_RECORDS_ENABLE
+	#define CONFIG_RTW_SDIO_RECORDS_ENABLE true
+	#endif
+	#ifndef CONFIG_RTW_SDIO_RECORDS_LOOP
+	#define CONFIG_RTW_SDIO_RECORDS_LOOP true
+	#endif
+#endif /* CONFIG_RTW_SDIO_RECORDS */
+
 #ifdef CONFIG_RTW_HOSTAPD_ACS
 	#ifdef CONFIG_FIND_BEST_CHANNEL
 		#undef CONFIG_FIND_BEST_CHANNEL
@@ -664,6 +679,12 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 #endif /* CONFIG_RTW_LPS */
 
 #ifdef CONFIG_WOWLAN
+
+#ifndef CONFIG_APF_VERSION
+#undef CONFIG_WOW_APF
+#undef CONFIG_WOW_APF_DBG
+#endif /* CONFIG_APF_VERSION */
+
 #ifdef CONFIG_RTW_IPS_WOW
 #ifdef RTW_WOW_IPS_MODE
 	#if (RTW_WOW_IPS_MODE > 4 || RTW_WOW_IPS_MODE < 0 || RTW_WOW_IPS_MODE == 1)

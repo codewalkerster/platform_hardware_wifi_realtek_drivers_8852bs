@@ -5122,7 +5122,7 @@ void update_mgntframe_attrib(_adapter *padapter, struct _ADAPTER_LINK *padapter_
 	bmc_sta = rtw_get_bcmc_stainfo(padapter, padapter_link);
 	if (bmc_sta == NULL) {
 		RTW_ERR("%s bmc_sta=NULL\n", __func__);
-		//rtw_warn_on(1);
+		rtw_warn_on(1);
 	}
 	pattrib->type = WIFI_MGT_TYPE;
 	pattrib->hdrlen = 24;
@@ -11185,7 +11185,7 @@ void link_timer_hdl(void *ctx)
 	if (rtw_sta_linking_test_force_fail())
 		RTW_INFO("rtw_sta_linking_test_force_fail\n");
 
-	if (pmlmeext->join_abort && pmlmeinfo->state != WIFI_FW_NULL_STATE) {
+	if (pmlmeext->join_abort) {
 		RTW_INFO(FUNC_ADPT_FMT" join abort\n", FUNC_ADPT_ARG(padapter));
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		report_join_res(padapter, -4, WLAN_STATUS_UNSPECIFIED_FAILURE);

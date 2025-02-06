@@ -32,9 +32,11 @@ static u8 llmnr_v6_multicast_addr[] = {0x33, 0x33, 0x00, 0x01, 0x00, 0x03};
 static u8 wsd_v4_multicast_addr[] = {0x01, 0x00, 0x5E, 0x7F, 0xFF, 0xFA};
 static u8 wsd_v6_multicast_addr[] = {0x33, 0x33, 0x00, 0x00, 0x00, 0x0C};
 static u8 icmp_ra_multicast_addr[] = {0x33, 0x33, 0x00, 0x00, 0x00, 0x01};
+static u8 ip_v6_multicast_addr[]   = {0x33, 0x33, 0xff, 0x36, 0x13, 0x8b};
 
 static struct mac_ax_multicast_info mac_multicast_info_v4 = {0};
 static struct mac_ax_multicast_info mac_multicast_info_v6 = {0};
+static struct mac_ax_multicast_info mac_multicast_info_icmp_ra = {0};
 
 
 static u32 send_h2c_keep_alive(struct mac_ax_adapter *adapter,
@@ -2435,11 +2437,11 @@ u32 mac_mdns_ofld(struct mac_ax_adapter *adapter, struct rtw_hal_mac_mdns_ofld *
 		PLTFM_MSG_ERR("mac_cfg_multicast add v6 fail ret = %d\n", ret);
 		// re-open mulitcase
 		if (ret == MACNPTR) {
-			ret = mac_cfg_multicast(adapter, 0, mc_info_v4);
+			ret = mac_cfg_multicast(adapter, 0, mc_info_v6);
 			if (ret != MACSUCCESS)
 				PLTFM_MSG_ERR("mac_cfg_multicast del v6 fail = %d\n", ret);
 		}
-		ret = mac_cfg_multicast(adapter, cfg.mdns_offload_en, mc_info_v4);
+		ret = mac_cfg_multicast(adapter, cfg.mdns_offload_en, mc_info_v6);
 		if (ret != MACSUCCESS)
 			PLTFM_MSG_ERR("mac_cfg_multicast add v6 fail = %d\n", ret);
 	}
@@ -2469,9 +2471,13 @@ u32 mac_apf_ofld(struct mac_ax_adapter *adapter, struct rtw_hal_mac_apf *papf_of
 	struct h2c_info h2c_info = {0};
 	struct mac_ax_intf_ops *ops = adapter_to_intf_ops(adapter);
 	u32 val32;
+
+	struct mac_ax_multicast_info *mc_info_v4;
 	struct mac_ax_multicast_info *mc_info_v6;
 
+	mc_info_v4 = &mac_multicast_info_v4;
 	mc_info_v6 = &mac_multicast_info_v6;
+
 	ret = MACSUCCESS;
 	cfg = *papf_ofld;
 
@@ -2482,10 +2488,18 @@ u32 mac_apf_ofld(struct mac_ax_adapter *adapter, struct rtw_hal_mac_apf *papf_of
 		return MACPROCERR;
 	PLTFM_MSG_TRACE("[APF OFLD] =============>\n");
 
-	PLTFM_MEMCPY(mc_info_v6->mc_addr, icmp_ra_multicast_addr, 6);
+	PLTFM_MEMCPY(mc_info_v4->mc_addr, mdns_v4_multicast_addr, 6);
+	mc_info_v4->mc_msk = MAC_AX_MSK_NONE;
+
+//	PLTFM_MEMCPY(mc_info_v6->mc_addr, icmp_ra_multicast_addr, 6);
+	PLTFM_MEMCPY(mc_info_v6->mc_addr, mdns_v6_multicast_addr, 6);
 	mc_info_v6->mc_msk = MAC_AX_MSK_NONE;
 
 	if (cfg.apf_en == 0) {
+		ret = mac_cfg_multicast(adapter, cfg.apf_en, mc_info_v4);
+		if (ret != MACSUCCESS)
+			PLTFM_MSG_ERR("mac_cfg_multicast del v4 fail = %d\n", ret);
+
 		ret = mac_cfg_multicast(adapter, cfg.apf_en, mc_info_v6);
 		if (ret != MACSUCCESS)
 			PLTFM_MSG_ERR("mac_cfg_multicast del v6 fail ret = %d\n", ret);
@@ -2502,6 +2516,20 @@ u32 mac_apf_ofld(struct mac_ax_adapter *adapter, struct rtw_hal_mac_apf *papf_of
 	val32 |= B_AX_A_MC_LIST_CAM_MATCH;
 	MAC_REG_W32(R_AX_RX_FLTR_OPT, val32);
 
+	ret = mac_cfg_multicast(adapter, cfg.apf_en, mc_info_v4);
+	if (ret != MACSUCCESS) {
+		PLTFM_MSG_ERR("mac_cfg_multicast add v4 fail = %d\n", ret);
+		// re-open mulitcase
+		if (ret == MACNPTR) {
+			ret = mac_cfg_multicast(adapter, 0, mc_info_v4);
+			if (ret != MACSUCCESS)
+				PLTFM_MSG_ERR("mac_cfg_multicast del v4 fail = %d\n", ret);
+		}
+		ret = mac_cfg_multicast(adapter, cfg.apf_en, mc_info_v4);
+		if (ret != MACSUCCESS)
+			PLTFM_MSG_ERR("mac_cfg_multicast add v4 fail = %d\n", ret);
+
+	}
 	ret = mac_cfg_multicast(adapter, papf_ofld->apf_en, mc_info_v6);
 	if (ret != MACSUCCESS) {
 		PLTFM_MSG_ERR("mac_cfg_multicast add v6 fail ret = %d\n", ret);
@@ -2738,11 +2766,15 @@ u32 mac_wow_dbg_dump(struct mac_ax_adapter *adapter)
     	}
 #endif
 #if MAC_AX_FEATURE_DBGPKG
-	ret = mac_dump_err_status(adapter, HALT_C2H_L1_DBG_MODE);
-    	if (ret) {
-    	    	PLTFM_MSG_ERR("mac_dump_err_status fail (%d)\n", ret);
-    	    	return ret;
-    	}
+#if MAC_AX_PCIE_SUPPORT
+	if (adapter->env_info.intf == MAC_AX_INTF_PCIE) {
+		ret = mac_dump_err_status(adapter, HALT_C2H_L1_DBG_MODE);
+		if (ret) {
+			PLTFM_MSG_ERR("mac_dump_err_status fail (%d)\n", ret);
+			return ret;
+		}
+	}
+#endif
 #endif
 	PLTFM_MUTEX_UNLOCK(&adapter->lock_info.err_get_lock);
 	return ret;

@@ -305,7 +305,7 @@ void rtw_sink_rtp_seq_dbg(_adapter *adapter, u8 *ehdr_pos)
 				} else {
 					RTW_INFO("%s : RTP Seq num from %d to %d\n", __FUNCTION__, precvinfo->pre_rtp_rxseq, precvinfo->cur_rtp_rxseq);
 				}
-			}	
+			}
 		}
 	}
 }
@@ -3433,10 +3433,10 @@ int proc_get_dyn_rrsr(struct seq_file *m, void *v) {
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	u32 init_rrsr =0xFFFFFFFF;
 
-	if (padapter) 
+	if (padapter)
 		RTW_PRINT_SEL(m, "en_dyn_rrsr = %d fixed_rrsr_value =0x%x %s\n"
 			, pregpriv->en_dyn_rrsr
-			, pregpriv->set_rrsr_value 
+			, pregpriv->set_rrsr_value
 			, (pregpriv->set_rrsr_value == init_rrsr)?"(default)":"(fixed)"
 		);
 
@@ -4556,7 +4556,7 @@ ssize_t proc_set_wow_enable(struct file *file, const char __user *buffer,
 	int num = 0;
 	int mode = 0;
 
-	if (count < 1) 
+	if (count < 1)
 		return -EFAULT;
 
 	if (count > sizeof(tmp)) {
@@ -4564,9 +4564,9 @@ ssize_t proc_set_wow_enable(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 
-	if (buffer && !copy_from_user(tmp, buffer, count)) 
+	if (buffer && !copy_from_user(tmp, buffer, count))
 		num = sscanf(tmp, "%d", &mode);
-	else 
+	else
 		return -EFAULT;
 
 	if (num != 1) {
@@ -4901,7 +4901,7 @@ ssize_t proc_set_wow_mdns_resp(struct file *file, const char __user *buffer,
 			rtw_wow_del_mdns_resp(padapter, i);
 		goto exit;
 	}
-	
+
 	num = sscanf(tmp, "%hhu %s", &resp_idx, mdns_resp);
 	if ((num < 1) || (resp_idx > (MAX_MDNS_RESP_NUM - 1))) {
 		RTW_INFO("argument unavailable\n");
@@ -5274,6 +5274,142 @@ exit:
 	return 0;
 }
 #endif /* CONFIG_MDNS_OFFLOAD */
+
+#ifdef CONFIG_WOW_APF
+#define APF_PROC_BUF_LEN (3 + MAX_APF_PROG_SIZE * 2) /* set + apf_prog_str_size */
+ssize_t proc_set_wow_apf(struct file *file, const char __user *buffer,
+			       size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char *tmp = NULL;
+	char cmd[8];
+	u8 *apf_prog = NULL;
+	int err = 0;
+	int num, i;
+	size_t apf_str_len = 0;
+	u16 apf_hex_len = 0;
+
+	tmp = rtw_zvmalloc(APF_PROC_BUF_LEN);
+	apf_prog = rtw_zvmalloc(MAX_APF_PROG_SIZE);
+	if (!tmp || !apf_prog) {
+		RTW_INFO("alloc buffer failed\n");
+		err = -EFAULT;
+		goto exit;
+	}
+
+	if (count < 1 || count > APF_PROC_BUF_LEN) {
+		RTW_INFO("argument size not available\n");
+		err = -EINVAL;
+		goto exit;
+	}
+
+	if (!buffer || copy_from_user(tmp, buffer, count)) {
+		err = -EFAULT;
+		goto exit;
+	}
+#ifdef CONFIG_WOW_APF_DBG
+	RTW_INFO("[APFDBG]%s() %s\n", __func__, tmp);
+#endif
+	if (strncmp(tmp, "help", 4) == 0) {
+		RTW_INFO("apf cmd:\n");
+		RTW_INFO("clear all apf prog		: echo \"clear\" > wow_apf\n");
+		RTW_INFO("$set apf prog				: echo set $APF_PROG > wow_apf\n");
+		RTW_INFO("$get apf prog				: cat wow_apf\n");
+	} else if (strncmp(tmp, "clear", 5) == 0) {
+		num = sscanf(tmp, "%s", cmd);
+		if (num != 1) {
+			RTW_INFO("argument unavailable\n");
+			err = -EINVAL;
+			goto exit;
+		} else {
+			RTW_INFO("clear apf program\n");
+			rtw_wow_clear_apf(padapter);
+			goto exit;
+		}
+	} else if (strncmp(tmp, "set", 3) == 0) {
+		num = sscanf(tmp, "%s %s", cmd, apf_prog);
+		if (num != 2) {
+			RTW_INFO("argument unavailable\n");
+			err = -EINVAL;
+			goto exit;
+		} else {
+			RTW_INFO("set apf program\n");
+			apf_str_len = strlen(apf_prog);
+			if (apf_str_len % 2 != 0) {
+				err = -EINVAL;
+				RTW_INFO("apf prog content format is incorrect\n");
+				goto exit;
+			}
+
+			for (i = 0; i < apf_str_len; i += 2) {
+				apf_prog[apf_hex_len] = key_2char2num(apf_prog[i], apf_prog[i + 1]);
+				apf_hex_len++;
+			}
+			if (apf_hex_len > 2048) {
+				RTW_ERR("%s() APF program size exceed %u\n", __func__, MAX_APF_PROG_SIZE);
+				goto exit;
+			}
+			rtw_wow_set_apf(padapter, apf_prog, apf_hex_len);
+			goto exit;
+
+		}
+	} else {
+		RTW_INFO("Incorrect apf cmd, use \"echo help > set_apf\" to get help\n");
+		goto exit;
+	}
+
+exit:
+	if (tmp)
+		rtw_vmfree(tmp, APF_PROC_BUF_LEN);
+	if (apf_prog)
+		rtw_vmfree(apf_prog, MAX_APF_PROG_SIZE);
+
+	return err ? err : count;
+}
+
+int proc_get_wow_apf(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct wow_priv *wowpriv = adapter_to_wowlan(padapter);
+	struct rtw_apf_info *info = &wowpriv->apf_info;
+	u8 ret = _SUCCESS, *apf_prog = NULL;
+	u16 apf_prog_len = 0, i = 0;
+	int err = 0;
+
+	apf_prog = rtw_zvmalloc(MAX_APF_PROG_SIZE);
+	if (!apf_prog) {
+		RTW_ERR("%s() alloc buffer failed\n", __func__);
+		err = -EFAULT;
+		goto exit;
+	}
+
+	RTW_PRINT_SEL(m, "[APF CMD]\n");
+	RTW_PRINT_SEL(m, "Set apf prog			: echo set [$APF_PROG] > wow_apf\n");
+	RTW_PRINT_SEL(m, "Get apf prog			: cat wow_apf\n");
+	RTW_PRINT_SEL(m, "Clear apf prog		: echo \"clear\" > wow_apf\n");
+
+	RTW_PRINT_SEL(m, "\n==== apf_prog_num(%u) total_size(%u)====\n",
+				  info->apf_prog_num, info->apf_prog_total_size);
+	
+	ret = rtw_wow_get_apf(padapter, apf_prog, &apf_prog_len);
+	if (ret != _SUCCESS)
+		return -EFAULT;
+
+	RTW_PRINT_SEL(m, "\n==== apf_prog_len(%u) ram_len(%u)====\n",
+				  apf_prog_len, MAX_APF_PROG_SIZE);
+	for (i = 0; i < MAX_APF_PROG_SIZE; i++) {
+		if (i % 16 == 0)
+			RTW_PRINT_SEL(m, "\n");
+		RTW_PRINT_SEL(m, "%02x ", apf_prog[i]);
+	}
+	RTW_PRINT_SEL(m, "\n");
+
+exit:
+	return err;
+}
+#endif /* CONFIG_WOW_APF */
 
 #ifdef CONFIG_GPIO_WAKEUP
 int proc_get_wowlan_gpio_info(struct seq_file *m, void *v)

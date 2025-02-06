@@ -1581,6 +1581,32 @@ static void fsm_bcast_msg(struct fsm_priv *fsmpriv,
 	}
 }
 
+void fsm_ucast_msg(struct fsm_priv *fsmpriv,
+	struct sta_info *psta, char *pbuf, u32 sz, u16 event)
+{
+	struct fsm_root *root = fsmpriv->root;
+	struct fsm_main *fsm;
+	struct fsm_obj *obj;
+
+	if (!psta)
+		return;
+
+	list_for_each_entry(fsm, &root->q_share_thd.q, list) {
+		if (!fsm)
+			return;
+		if (fsm_status(fsm) != FSM_STATUS_ENABLE)
+			continue;
+		list_for_each_entry(obj, &fsm->obj_queue.q, list) {
+			if (!obj || obj->psta == NULL)
+				return;
+			if (psta && obj->psta == psta) {
+				fsm_gen_msg(obj, pbuf, sz,  event);
+				return;
+			}
+		}
+	}
+}
+
 void rtw_fsm_notify_connect(struct fsm_priv *fsmpriv, struct sta_info *psta, int res)
 {
 	_adapter *a = fsmpriv->root->a;
@@ -1588,9 +1614,9 @@ void rtw_fsm_notify_connect(struct fsm_priv *fsmpriv, struct sta_info *psta, int
 
 	pself = rtw_get_stainfo(&a->stapriv, a->phl_role->mac_addr);
 	if (res >= 0) /* success */
-		fsm_bcast_msg(fsmpriv, pself, (char *)psta, 0, FSM_EV_CONNECTED);
+		fsm_ucast_msg(fsmpriv, pself, (char *)psta, 0, FSM_EV_CONNECTED);
 	else
-		fsm_bcast_msg(fsmpriv, pself, (char *)psta, 0, FSM_EV_CONNECT_FAIL);
+		fsm_ucast_msg(fsmpriv, pself, (char *)psta, 0, FSM_EV_CONNECT_FAIL);
 }
 
 void rtw_fsm_notify_disconnect(struct fsm_priv *fsmpriv, struct sta_info *psta)
@@ -1600,17 +1626,17 @@ void rtw_fsm_notify_disconnect(struct fsm_priv *fsmpriv, struct sta_info *psta)
 
 	pself = rtw_get_stainfo(&a->stapriv, a->phl_role->mac_addr);
 	if (pself)
-		fsm_bcast_msg(fsmpriv, psta, (char *)pself, 0, FSM_EV_DISCONNECTED);
+		fsm_ucast_msg(fsmpriv, psta, (char *)pself, 0, FSM_EV_DISCONNECTED);
 }
 
 void rtw_fsm_notify_scan_start(struct fsm_priv *fsmpriv, struct sta_info *psta)
 {
-	fsm_bcast_msg(fsmpriv, psta, NULL, 0, FSM_EV_SCAN_START);
+	fsm_ucast_msg(fsmpriv, psta, NULL, 0, FSM_EV_SCAN_START);
 }
 
 void rtw_fsm_notify_scan_done(struct fsm_priv *fsmpriv, struct sta_info *psta)
 {
-	fsm_bcast_msg(fsmpriv, psta, NULL, 0, FSM_EV_SCAN_DONE);
+	fsm_ucast_msg(fsmpriv, psta, NULL, 0, FSM_EV_SCAN_DONE);
 }
 
 /** Debug funcitons

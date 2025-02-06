@@ -3554,6 +3554,23 @@ static u8 _cfg_mdns_ofld_info(struct _ADAPTER *a)
 }
 #endif /* CONFIG_MDNS_OFFLOAD */
 
+#ifdef CONFIG_WOW_APF
+static u8 _cfg_apf_info(struct _ADAPTER *a)
+{
+	struct dvobj_priv *d;
+	void *phl;
+	struct mlme_ext_priv *pmlmeext = &(a->mlmeextpriv);
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wow_priv *wowpriv = adapter_to_wowlan(a);
+	struct rtw_apf_info *info = &wowpriv->apf_info;
+
+	d = adapter_to_dvobj(a);
+	phl = GET_PHL_INFO(d);
+	rtw_phl_cfg_apf_info(phl, info);
+	return _SUCCESS;
+}
+#endif /* CONFIG_WOW_APF */
+
 static u8 _cfg_realwow_info(struct _ADAPTER *a)
 {
 	struct rtw_realwow_info info;
@@ -3800,6 +3817,11 @@ static u8 _wow_cfg(struct _ADAPTER *a, u8 wow_en, u8 no_link_mode)
 #ifdef CONFIG_MDNS_OFFLOAD
 		if (!_cfg_mdns_ofld_info(a))
 			return _FAIL;
+#endif
+
+#ifdef CONFIG_WOW_APF
+				if (!_cfg_apf_info(a))
+					return _FAIL;
 #endif
 
 		if (!_cfg_realwow_info(a))
